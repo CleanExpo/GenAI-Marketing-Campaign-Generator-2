@@ -149,11 +149,32 @@ export const generateMarketingCampaign = async (productDescription: string, gene
   }
 };
 
-export const generateImageFromPrompt = async (prompt: string, aspectRatio: string, negativePrompt?: string): Promise<string> => {
+export const generateImageFromPrompt = async (
+    prompt: string, 
+    aspectRatio: string, 
+    style: string, 
+    creativityLevel: number, 
+    negativePrompt?: string
+): Promise<string> => {
+    
+    let finalPrompt = prompt;
+
+    // Add style to the prompt
+    if (style && style.toLowerCase() !== 'none') {
+        finalPrompt = `A ${style.toLowerCase()} style image of: ${prompt}`;
+    }
+
+    // Add creativity level guidance
+    if (creativityLevel <= 3) {
+        finalPrompt += ". Adhere closely to the prompt with low creative interpretation.";
+    } else if (creativityLevel >= 8) {
+        finalPrompt += ". Use a high level of creative interpretation and imagination.";
+    }
+    
     try {
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
-            prompt: prompt,
+            prompt: finalPrompt,
             negativePrompt: negativePrompt,
             config: {
               numberOfImages: 1,

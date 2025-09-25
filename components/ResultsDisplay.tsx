@@ -3,6 +3,7 @@ import { CampaignResult } from '../types';
 import { AnalysisCard } from './AnalysisCard';
 import { LoadingSpinner, ExternalLinkIcon } from './icons';
 import { generateImageFromPrompt } from '../services/geminiService';
+import { ARTISTIC_STYLES } from '../constants';
 
 interface ResultsDisplayProps {
   results: CampaignResult | null;
@@ -11,18 +12,30 @@ interface ResultsDisplayProps {
   companyName: string;
   defaultAspectRatio: string;
   defaultNegativePrompt: string;
+  defaultImageStyle: string;
+  defaultCreativityLevel: number;
 }
 
 interface ImageResultProps {
     initialPrompt: string;
     defaultAspectRatio: string;
     defaultNegativePrompt: string;
+    defaultImageStyle: string;
+    defaultCreativityLevel: number;
 }
 
-const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectRatio, defaultNegativePrompt }) => {
+const ImageResult: React.FC<ImageResultProps> = ({ 
+    initialPrompt, 
+    defaultAspectRatio, 
+    defaultNegativePrompt,
+    defaultImageStyle,
+    defaultCreativityLevel,
+}) => {
     const [editablePrompt, setEditablePrompt] = useState(initialPrompt);
     const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
     const [negativePrompt, setNegativePrompt] = useState(defaultNegativePrompt);
+    const [style, setStyle] = useState(defaultImageStyle);
+    const [creativityLevel, setCreativityLevel] = useState(defaultCreativityLevel);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +44,7 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
         setIsGenerating(true);
         setError(null);
         try {
-            const url = await generateImageFromPrompt(editablePrompt, aspectRatio, negativePrompt);
+            const url = await generateImageFromPrompt(editablePrompt, aspectRatio, style, creativityLevel, negativePrompt);
             setImageUrl(url);
         } catch (err) {
             setError('Failed to generate image. Please try again.');
@@ -41,7 +54,7 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
     };
 
     return (
-        <div className="p-4 bg-slate-700/50 rounded-lg space-y-3">
+        <div className="p-4 bg-slate-700/50 rounded-lg space-y-4">
              <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Prompt</label>
                 <textarea
@@ -51,7 +64,7 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
                     rows={3}
                 />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">Aspect Ratio</label>
                     <select
@@ -67,6 +80,16 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
                     </select>
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Artistic Style</label>
+                    <select
+                        value={style}
+                        onChange={(e) => setStyle(e.target.value)}
+                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-sm"
+                    >
+                        {ARTISTIC_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+                <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-300 mb-1">Negative Prompt</label>
                     <input
                         type="text"
@@ -76,9 +99,23 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
                         className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-sm"
                     />
                 </div>
+                 <div className="md:col-span-2">
+                    <label htmlFor="creativity" className="block text-sm font-medium text-slate-300 mb-1">
+                        Creativity Level: <span className="font-bold text-cyan-400">{creativityLevel}</span>
+                    </label>
+                    <input
+                        id="creativity"
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={creativityLevel}
+                        onChange={(e) => setCreativityLevel(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-2">
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
@@ -110,7 +147,16 @@ const ImageResult: React.FC<ImageResultProps> = ({ initialPrompt, defaultAspectR
     );
 };
 
-export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, isLoading, error, companyName, defaultAspectRatio, defaultNegativePrompt }) => {
+export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
+    results, 
+    isLoading, 
+    error, 
+    companyName, 
+    defaultAspectRatio, 
+    defaultNegativePrompt,
+    defaultImageStyle,
+    defaultCreativityLevel,
+}) => {
   if (isLoading) {
     return (
       <div className="text-center p-10 bg-slate-800/50 rounded-lg mt-8 border border-slate-700">
@@ -290,6 +336,8 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ results, isLoadi
                     initialPrompt={prompt} 
                     defaultAspectRatio={defaultAspectRatio}
                     defaultNegativePrompt={defaultNegativePrompt}
+                    defaultImageStyle={defaultImageStyle}
+                    defaultCreativityLevel={defaultCreativityLevel}
                 />
             ))}
           </div>

@@ -3,7 +3,7 @@ import { generateMarketingCampaign } from './services/geminiService';
 import { CampaignResult, AdvancedSettings } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
-import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS } from './constants';
+import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 
 const App: React.FC = () => {
     const [productDescription, setProductDescription] = useState<string>('');
@@ -16,6 +16,7 @@ const App: React.FC = () => {
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
         companyWebsite: '',
+        companyLogo: '',
         brandColors: { primary: '#38bdf8', secondary: '#1d4ed8' },
         socialMediaLinks: [],
         nationalLanguage: 'American English',
@@ -29,6 +30,8 @@ const App: React.FC = () => {
         targetPlatforms: ['Website Blog', 'Facebook Post', 'X (Twitter) Post'],
         defaultAspectRatio: '1:1',
         defaultNegativePrompt: '',
+        defaultImageStyle: 'Photorealistic',
+        defaultCreativityLevel: 7,
     });
 
     const handleGenerate = async () => {
@@ -100,6 +103,25 @@ const App: React.FC = () => {
             ? advancedSettings.targetPlatforms.filter(p => p !== platform)
             : [...advancedSettings.targetPlatforms, platform];
         handleSettingChange('targetPlatforms', newPlatforms);
+    };
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                handleSettingChange('companyLogo', reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const removeLogo = () => {
+        handleSettingChange('companyLogo', '');
+        const fileInput = document.getElementById('logo-upload') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
+        }
     };
     
     const formInputClass = "w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-sm";
@@ -190,6 +212,34 @@ const App: React.FC = () => {
                                                 />
                                             </div>
                                         </div>
+                                        <div className="mt-4">
+                                            <label className={formLabelClass}>Company Logo</label>
+                                            {advancedSettings.companyLogo ? (
+                                                <div className="mt-2 flex items-center gap-4">
+                                                    <img src={advancedSettings.companyLogo} alt="Company Logo Preview" className="h-16 w-16 object-contain rounded-md bg-slate-700 p-1 border border-slate-600" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={removeLogo}
+                                                        className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4" /> Remove
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2">
+                                                    <label htmlFor="logo-upload" className="cursor-pointer bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm font-medium px-4 py-2 rounded-md transition-colors">
+                                                        Upload Image
+                                                    </label>
+                                                    <input
+                                                        id="logo-upload"
+                                                        type="file"
+                                                        accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                                                        className="sr-only"
+                                                        onChange={handleLogoUpload}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     {/* Social Media */}
                                     <div>
@@ -278,6 +328,16 @@ const App: React.FC = () => {
                                                         </select>
                                                     </div>
                                                     <div>
+                                                        <label className={formLabelClass}>Artistic Style</label>
+                                                        <select
+                                                            value={advancedSettings.defaultImageStyle}
+                                                            onChange={(e) => handleSettingChange('defaultImageStyle', e.target.value)}
+                                                            className={formInputClass}
+                                                        >
+                                                            {ARTISTIC_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="md:col-span-2">
                                                         <label className={formLabelClass}>Negative Prompt</label>
                                                         <input
                                                             type="text"
@@ -285,6 +345,20 @@ const App: React.FC = () => {
                                                             value={advancedSettings.defaultNegativePrompt}
                                                             onChange={(e) => handleSettingChange('defaultNegativePrompt', e.target.value)}
                                                             className={formInputClass}
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label htmlFor="default-creativity" className={formLabelClass}>
+                                                            Creativity Level: <span className="font-bold text-cyan-400">{advancedSettings.defaultCreativityLevel}</span>
+                                                        </label>
+                                                        <input
+                                                            id="default-creativity"
+                                                            type="range"
+                                                            min="1"
+                                                            max="10"
+                                                            value={advancedSettings.defaultCreativityLevel}
+                                                            onChange={(e) => handleSettingChange('defaultCreativityLevel', Number(e.target.value))}
+                                                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                                                         />
                                                     </div>
                                                 </div>
@@ -321,6 +395,8 @@ const App: React.FC = () => {
                     companyName={advancedSettings.companyName}
                     defaultAspectRatio={advancedSettings.defaultAspectRatio}
                     defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
+                    defaultImageStyle={advancedSettings.defaultImageStyle}
+                    defaultCreativityLevel={advancedSettings.defaultCreativityLevel}
                 />
             </main>
         </div>

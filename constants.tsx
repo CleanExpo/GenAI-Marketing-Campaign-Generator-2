@@ -25,3 +25,14 @@ export const TARGET_PLATFORMS = [
     "X (Twitter) Post",
     "TikTok Post",
 ];
+
+export const ARTISTIC_STYLES = [
+    "None",
+    "Photorealistic",
+    "Illustration",
+    "Anime",
+    "Fantasy Art",
+    "Concept Art",
+    "Minimalist",
+    "Abstract",
+];

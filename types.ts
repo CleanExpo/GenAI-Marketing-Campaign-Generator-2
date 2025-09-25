@@ -35,6 +35,7 @@ export interface CampaignResult {
 export interface AdvancedSettings {
   companyName: string;
   companyWebsite: string;
+  companyLogo?: string;
   brandColors: {
     primary: string;
     secondary: string;
@@ -51,4 +52,6 @@ export interface AdvancedSettings {
   targetPlatforms: string[];
   defaultAspectRatio: string;
   defaultNegativePrompt: string;
+  defaultImageStyle: string;
+  defaultCreativityLevel: number;
 }
