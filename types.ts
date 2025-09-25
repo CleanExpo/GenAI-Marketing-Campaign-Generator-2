@@ -1,52 +1,54 @@
 // types.ts
 
-export interface SocialMediaStrategy {
-  platform: string;
-  strategy: string;
-}
-
-export interface AdCopy {
-  headline: string;
-  body: string;
-}
-
-export interface MetaData {
-  title: string;
-  description: string;
-}
-
 export interface CampaignResult {
   targetAudience: string;
   keyMessaging: string[];
-  socialMediaStrategy: SocialMediaStrategy[];
+  socialMediaContent: {
+    platform: string;
+    contentExample: string;
+  }[];
   seoKeywords: string[];
-  adCopy: AdCopy[];
+  adCopy: {
+    headline: string;
+    body: string;
+  }[];
   aiImagePrompts?: string[];
   aiVideoConcepts?: string[];
   backlinkStrategy?: string[];
-  trendingTopics?: { topic: string; angle: string; }[];
-  metaData?: MetaData;
-}
-
-export interface SocialMediaLink {
-  id: number;
-  platform: string;
-  url: string;
+  trendingTopics?: {
+    topic: string;
+    angle: string;
+  }[];
+  metaData?: {
+    title: string;
+    description: string;
+  };
+  competitorAnalysis?: {
+    competitor: string;
+    strengths: string[];
+    weaknesses: string[];
+    strategy: string;
+    strategyExamples?: string[];
+  }[];
 }
 
 export interface AdvancedSettings {
   companyName: string;
   companyWebsite: string;
-  brandColors: { primary: string; secondary: string; };
-  companyLogo: string; // base64 string
-  socialMediaLinks: SocialMediaLink[];
-  semrushApiKey: string; // For future use
-  insertWatermark: boolean;
-  generateVerifiableText: boolean;
+  brandColors: {
+    primary: string;
+    secondary: string;
+  };
+  socialMediaLinks: { platform: string; url: string }[];
   nationalLanguage: string;
   useGoogleEAT: boolean;
   useHemingwayStyle: boolean;
   generateBacklinks: boolean;
   findTrendingTopics: boolean;
+  competitorWebsites: { url: string }[];
+  insertWatermark: boolean;
+  generateVerifiableText: boolean;
   targetPlatforms: string[];
+  defaultAspectRatio: string;
+  defaultNegativePrompt: string;
 }

@@ -1,322 +1,330 @@
-import React, { useState, useCallback, ChangeEvent } from 'react';
+import React, { useState } from 'react';
 import { generateMarketingCampaign } from './services/geminiService';
-import { CampaignResult, AdvancedSettings, SocialMediaLink } from './types';
+import { CampaignResult, AdvancedSettings } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
-import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS } from './constants';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
-
-const initialAdvancedSettings: AdvancedSettings = {
-  companyName: '',
-  companyWebsite: '',
-  brandColors: { primary: '#0891B2', secondary: '#64748B' },
-  companyLogo: '',
-  socialMediaLinks: [],
-  semrushApiKey: '',
-  insertWatermark: true,
-  generateVerifiableText: true,
-  nationalLanguage: 'American English',
-  useGoogleEAT: true,
-  useHemingwayStyle: true,
-  generateBacklinks: true,
-  findTrendingTopics: true,
-  targetPlatforms: [],
-}
+import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS } from './constants';
 
 const App: React.FC = () => {
-  const [productDescription, setProductDescription] = useState<string>('');
-  const [generateMedia, setGenerateMedia] = useState<boolean>(true);
-  const [results, setResults] = useState<CampaignResult | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(initialAdvancedSettings);
+    const [productDescription, setProductDescription] = useState<string>('');
+    const [generateMedia, setGenerateMedia] = useState<boolean>(true);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [results, setResults] = useState<CampaignResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  const handleGenerateClick = useCallback(async () => {
-    if (!productDescription.trim()) {
-      setError("Please describe your product first.");
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    setResults(null);
-    try {
-      const campaignResults = await generateMarketingCampaign(productDescription, generateMedia, advancedSettings);
-      setResults(campaignResults);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please check the console and try again.");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [productDescription, generateMedia, advancedSettings]);
-
-  const handleAdvancedChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const isCheckbox = type === 'checkbox';
-    const checked = (e.target as HTMLInputElement).checked;
-    setAdvancedSettings(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
-  };
-
-  const handleColorChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setAdvancedSettings(prev => ({
-        ...prev,
-        brandColors: { ...prev.brandColors, [name]: value }
-    }));
-  };
-  
-  const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (loadEvent) => {
-            setAdvancedSettings(prev => ({ ...prev, companyLogo: loadEvent.target?.result as string }));
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSocialLinkChange = (id: number, field: 'platform' | 'url', value: string) => {
-      setAdvancedSettings(prev => ({
-          ...prev,
-          socialMediaLinks: prev.socialMediaLinks.map(link => link.id === id ? { ...link, [field]: value } : link)
-      }));
-  };
-
-  const addSocialLink = () => {
-      setAdvancedSettings(prev => ({
-          ...prev,
-          socialMediaLinks: [...prev.socialMediaLinks, { id: Date.now(), platform: '', url: '' }]
-      }));
-  };
-
-  const removeSocialLink = (id: number) => {
-      setAdvancedSettings(prev => ({
-          ...prev,
-          socialMediaLinks: prev.socialMediaLinks.filter(link => link.id !== id)
-      }));
-  };
-
-  const handlePlatformSelect = (platform: string) => {
-    setAdvancedSettings(prev => {
-        const newPlatforms = prev.targetPlatforms.includes(platform)
-            ? prev.targetPlatforms.filter(p => p !== platform)
-            : [...prev.targetPlatforms, platform];
-        return { ...prev, targetPlatforms: newPlatforms };
+    const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
+        companyName: '',
+        companyWebsite: '',
+        brandColors: { primary: '#38bdf8', secondary: '#1d4ed8' },
+        socialMediaLinks: [],
+        nationalLanguage: 'American English',
+        useGoogleEAT: true,
+        useHemingwayStyle: false,
+        generateBacklinks: true,
+        findTrendingTopics: true,
+        competitorWebsites: [],
+        insertWatermark: false,
+        generateVerifiableText: false,
+        targetPlatforms: ['Website Blog', 'Facebook Post', 'X (Twitter) Post'],
+        defaultAspectRatio: '1:1',
+        defaultNegativePrompt: '',
     });
-  };
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans">
-      <main className="max-w-4xl mx-auto px-4 py-8 md:py-12">
-        <header className="text-center mb-10">
-          <div className="flex justify-center items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-slate-800 border-2 border-cyan-400 flex items-center justify-center rounded-lg font-bold text-cyan-400 text-xl">AI</div>
-              <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 text-transparent bg-clip-text">
-                  GenAI Marketing Campaign Generator
-              </h1>
-          </div>
-          <p className="text-slate-400 mt-2 text-lg max-w-2xl mx-auto">
-              Describe your product, and we'll generate a complete marketing strategy with visuals, copy, SEO keywords, and more.
-          </p>
-        </header>
+    const handleGenerate = async () => {
+        if (!productDescription.trim()) {
+            setError("Please enter a product description.");
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        setResults(null);
+        try {
+            const campaignResults = await generateMarketingCampaign(productDescription, generateMedia, advancedSettings);
+            setResults(campaignResults);
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700 space-y-6">
-          <div>
-            <textarea
-              id="productDescription"
-              className="w-full h-32 p-4 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors font-sans text-base placeholder:text-slate-500"
-              value={productDescription}
-              onChange={(e) => setProductDescription(e.target.value)}
-              placeholder="e.g., A smart, eco-friendly water bottle that tracks your hydration..."
-            />
-          </div>
+    const handleInspirationClick = () => {
+        const randomPrompt = INSPIRATION_PROMPTS[Math.floor(Math.random() * INSPIRATION_PROMPTS.length)];
+        setProductDescription(randomPrompt);
+    };
 
-          <div>
-              <p className="text-sm text-slate-400 mb-2">Need inspiration? Try an example:</p>
-              <div className="flex flex-wrap gap-2">
-                  {INSPIRATION_PROMPTS.map(prompt => (
-                      <button key={prompt} onClick={() => setProductDescription(prompt)} className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-full transition-colors">
-                          {prompt}
-                      </button>
-                  ))}
-              </div>
-          </div>
+    const handleSettingChange = (field: keyof AdvancedSettings, value: any) => {
+        setAdvancedSettings(prev => ({ ...prev, [field]: value }));
+    };
 
-          <div className="bg-slate-900/70 p-4 rounded-lg border border-slate-700">
-             <div className="flex items-center justify-between cursor-pointer" onClick={() => setGenerateMedia(!generateMedia)}>
-                <div>
-                    <label htmlFor="generateMedia" className="font-medium text-slate-200 cursor-pointer">Generate Media Assets</label>
-                    <p className="text-sm text-slate-400">Also generate images and videos. (This will take longer)</p>
-                </div>
-                <div className="relative">
-                    <input type="checkbox" id="generateMedia" className="sr-only" checked={generateMedia} onChange={() => {}} />
-                    <div className={`block w-14 h-8 rounded-full transition-colors ${generateMedia ? 'bg-cyan-600' : 'bg-slate-600'}`}></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${generateMedia ? 'transform translate-x-6' : ''}`}></div>
-                </div>
-            </div>
-            
-            <div className="border-t border-slate-700 mt-4 pt-4">
-                 <div onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-between cursor-pointer">
-                    <h3 className="font-medium text-slate-200">Advanced Settings</h3>
-                    <ChevronDownIcon className={showAdvanced ? 'transform rotate-180' : ''} />
-                </div>
+    const handleColorChange = (color: 'primary' | 'secondary', value: string) => {
+        setAdvancedSettings(prev => ({
+            ...prev,
+            brandColors: { ...prev.brandColors, [color]: value }
+        }));
+    };
+    
+    const handleSocialLinkChange = (index: number, field: 'platform' | 'url', value: string) => {
+        const newLinks = [...advancedSettings.socialMediaLinks];
+        newLinks[index] = { ...newLinks[index], [field]: value };
+        handleSettingChange('socialMediaLinks', newLinks);
+    };
 
-                {showAdvanced && (
-                    <div className="mt-4 space-y-6 animate-fade-in">
-                        {/* Company Branding */}
-                        <div className="space-y-4 p-4 bg-slate-800/50 rounded-md border border-slate-600">
-                            <h4 className="font-semibold text-cyan-400">Company Branding</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Company Name</label>
-                                    <input type="text" name="companyName" value={advancedSettings.companyName} onChange={handleAdvancedChange} className="input-field" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Company Website</label>
-                                    <input type="url" name="companyWebsite" value={advancedSettings.companyWebsite} onChange={handleAdvancedChange} className="input-field" placeholder="https://..."/>
-                                </div>
-                                <div className="flex items-center gap-4">
+    const addSocialLink = () => {
+        handleSettingChange('socialMediaLinks', [...advancedSettings.socialMediaLinks, { platform: '', url: '' }]);
+    };
+
+    const removeSocialLink = (index: number) => {
+        const newLinks = advancedSettings.socialMediaLinks.filter((_, i) => i !== index);
+        handleSettingChange('socialMediaLinks', newLinks);
+    };
+    
+    const handleCompetitorChange = (index: number, value: string) => {
+        const newCompetitors = [...advancedSettings.competitorWebsites];
+        newCompetitors[index] = { url: value };
+        handleSettingChange('competitorWebsites', newCompetitors);
+    };
+
+    const addCompetitor = () => {
+        handleSettingChange('competitorWebsites', [...advancedSettings.competitorWebsites, { url: '' }]);
+    };
+    
+    const removeCompetitor = (index: number) => {
+        const newCompetitors = advancedSettings.competitorWebsites.filter((_, i) => i !== index);
+        handleSettingChange('competitorWebsites', newCompetitors);
+    };
+
+    const handlePlatformToggle = (platform: string) => {
+        const newPlatforms = advancedSettings.targetPlatforms.includes(platform)
+            ? advancedSettings.targetPlatforms.filter(p => p !== platform)
+            : [...advancedSettings.targetPlatforms, platform];
+        handleSettingChange('targetPlatforms', newPlatforms);
+    };
+    
+    const formInputClass = "w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-sm";
+    const formLabelClass = "block text-sm font-medium text-slate-300 mb-1";
+    const formCheckboxClass = "h-4 w-4 rounded bg-slate-700 border-slate-500 text-cyan-600 focus:ring-cyan-500";
+    const formChipClass = "cursor-pointer text-sm font-medium px-2.5 py-1.5 rounded-full transition-colors";
+    const formChipSelectedClass = "bg-cyan-600 text-white";
+    const formChipUnselectedClass = "bg-slate-700 hover:bg-slate-600 text-cyan-300";
+
+
+    return (
+        <div className="bg-slate-900 text-white min-h-screen font-sans">
+            <main className="max-w-4xl mx-auto p-4 md:p-8">
+                <header className="text-center mb-8">
+                    <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                        AI Marketing Campaign Generator
+                    </h1>
+                    <p className="text-slate-400 mt-2 text-lg">
+                        Instantly craft comprehensive marketing strategies from a simple product idea.
+                    </p>
+                </header>
+
+                <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
+                    <div className="space-y-6">
+                        <div>
+                            <label htmlFor="productDescription" className="block text-lg font-medium text-slate-300 mb-2">
+                                Describe your product, service, or idea
+                            </label>
+                            <textarea
+                                id="productDescription"
+                                value={productDescription}
+                                onChange={(e) => setProductDescription(e.target.value)}
+                                className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-base"
+                                placeholder="e.g., A subscription box for artisanal coffee from around the world."
+                                rows={4}
+                            />
+                            <button onClick={handleInspirationClick} className="text-sm text-cyan-400 hover:text-cyan-300 mt-2">
+                                ✨ Get Inspired
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-md">
+                           <label htmlFor="generateMedia" className="font-medium text-slate-200 flex-1 cursor-pointer">
+                                Generate Media Assets (Image Prompts & Video Concepts)
+                            </label>
+                             <input
+                                type="checkbox"
+                                name="generateMedia"
+                                id="generateMedia"
+                                checked={generateMedia}
+                                onChange={(e) => setGenerateMedia(e.target.checked)}
+                                className="h-5 w-5 rounded bg-slate-900 border-slate-500 text-cyan-600 focus:ring-cyan-500 cursor-pointer"
+                            />
+                        </div>
+
+                        {/* Advanced Settings */}
+                        <div>
+                            <button onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-between w-full text-left text-lg font-semibold text-slate-200">
+                                Advanced Settings
+                                <ChevronDownIcon className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showAdvanced && (
+                                <div className="mt-4 p-4 bg-slate-900/70 border border-slate-700 rounded-lg space-y-6">
+                                    {/* Branding Context */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Primary Color</label>
-                                        <input type="color" name="primary" value={advancedSettings.brandColors.primary} onChange={handleColorChange} className="h-10 w-16 rounded-md" />
+                                        <h4 className={formLabelClass}>Branding Context</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                            <input type="text" placeholder="Company Name" value={advancedSettings.companyName} onChange={e => handleSettingChange('companyName', e.target.value)} className={formInputClass} />
+                                            <input type="url" placeholder="Company Website (for style analysis)" value={advancedSettings.companyWebsite} onChange={e => handleSettingChange('companyWebsite', e.target.value)} className={formInputClass} />
+                                            <div>
+                                                <label htmlFor="primaryColor" className="block text-xs text-slate-400 mb-1">Primary Brand Color</label>
+                                                <input
+                                                    id="primaryColor"
+                                                    type="color"
+                                                    value={advancedSettings.brandColors.primary}
+                                                    onChange={e => handleColorChange('primary', e.target.value)}
+                                                    className="w-full h-10 p-1 bg-slate-800 border border-slate-600 rounded-md cursor-pointer"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="secondaryColor" className="block text-xs text-slate-400 mb-1">Secondary Brand Color</label>
+                                                <input
+                                                    id="secondaryColor"
+                                                    type="color"
+                                                    value={advancedSettings.brandColors.secondary}
+                                                    onChange={e => handleColorChange('secondary', e.target.value)}
+                                                    className="w-full h-10 p-1 bg-slate-800 border border-slate-600 rounded-md cursor-pointer"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
+                                    {/* Social Media */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Secondary Color</label>
-                                        <input type="color" name="secondary" value={advancedSettings.brandColors.secondary} onChange={handleColorChange} className="h-10 w-16 rounded-md" />
+                                        <h4 className={formLabelClass}>Social Media Links</h4>
+                                        {advancedSettings.socialMediaLinks.map((link, index) => (
+                                            <div key={index} className="flex items-center gap-2 mb-2">
+                                                <input type="text" placeholder="Platform (e.g., Instagram)" value={link.platform} onChange={e => handleSocialLinkChange(index, 'platform', e.target.value)} className={`${formInputClass} flex-1`} />
+                                                <input type="url" placeholder="URL" value={link.url} onChange={e => handleSocialLinkChange(index, 'url', e.target.value)} className={`${formInputClass} flex-grow-[2]`} />
+                                                <button onClick={() => removeSocialLink(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={addSocialLink} className="text-sm text-cyan-400 hover:text-cyan-300">+ Add Social Link</button>
                                     </div>
+                                    
+                                    {/* Content & SEO */}
+                                    <div>
+                                        <h4 className={formLabelClass}>Content & SEO</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                            <select value={advancedSettings.nationalLanguage} onChange={e => handleSettingChange('nationalLanguage', e.target.value)} className={formInputClass}>
+                                                {NATIONAL_LANGUAGES.map(lang => <option key={lang} value={lang}>{lang}</option>)}
+                                            </select>
+                                            <div className="flex flex-col gap-2 justify-center">
+                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.useGoogleEAT} onChange={e => handleSettingChange('useGoogleEAT', e.target.checked)} className={formCheckboxClass} /> Use Google E-E-A-T Guidelines</label>
+                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.useHemingwayStyle} onChange={e => handleSettingChange('useHemingwayStyle', e.target.checked)} className={formCheckboxClass} /> Use Hemingway Writing Style</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Strategic Directives */}
+                                     <div>
+                                        <h4 className={formLabelClass}>Strategic Directives</h4>
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.generateBacklinks} onChange={e => handleSettingChange('generateBacklinks', e.target.checked)} className={formCheckboxClass} /> Generate Backlink Strategy</label>
+                                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.findTrendingTopics} onChange={e => handleSettingChange('findTrendingTopics', e.target.checked)} className={formCheckboxClass} /> Find Relevant Trending Topics</label>
+                                        </div>
+                                    </div>
+
+                                    {/* Competitor Analysis */}
+                                    <div>
+                                        <h4 className={formLabelClass}>Competitor Websites</h4>
+                                         {advancedSettings.competitorWebsites.map((comp, index) => (
+                                            <div key={index} className="flex items-center gap-2 mb-2">
+                                                <input type="url" placeholder="https://competitor.com" value={comp.url} onChange={e => handleCompetitorChange(index, e.target.value)} className={`${formInputClass} flex-1`} />
+                                                <button onClick={() => removeCompetitor(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={addCompetitor} className="text-sm text-cyan-400 hover:text-cyan-300">+ Add Competitor</button>
+                                    </div>
+                                    
+                                    {/* Platform Targeting */}
+                                    <div>
+                                        <h4 className={formLabelClass}>Target Platforms</h4>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {TARGET_PLATFORMS.map(platform => (
+                                                <label key={platform} className={`${formChipClass} ${advancedSettings.targetPlatforms.includes(platform) ? formChipSelectedClass : formChipUnselectedClass}`}>
+                                                    <input type="checkbox" checked={advancedSettings.targetPlatforms.includes(platform)} onChange={() => handlePlatformToggle(platform)} className="sr-only" />
+                                                    {platform}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Media Generation */}
+                                    {generateMedia && (
+                                        <div>
+                                            <h4 className={formLabelClass}>Media Generation</h4>
+                                            <div className="flex flex-col gap-2 mt-2">
+                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.insertWatermark} onChange={e => handleSettingChange('insertWatermark', e.target.checked)} className={formCheckboxClass} /> Leave space for watermark in image prompts</label>
+                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.generateVerifiableText} onChange={e => handleSettingChange('generateVerifiableText', e.target.checked)} className={formCheckboxClass} /> Prioritize legible text in image prompts</label>
+                                            </div>
+                                            <div className="mt-4 p-3 bg-slate-800/50 border border-slate-700 rounded-md">
+                                                <h5 className="text-xs font-semibold text-slate-400 mb-2">Image Generation Defaults</h5>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className={formLabelClass}>Aspect Ratio</label>
+                                                        <select
+                                                            value={advancedSettings.defaultAspectRatio}
+                                                            onChange={(e) => handleSettingChange('defaultAspectRatio', e.target.value)}
+                                                            className={formInputClass}
+                                                        >
+                                                            <option value="1:1">Square (1:1)</option>
+                                                            <option value="16:9">Widescreen (16:9)</option>
+                                                            <option value="9:16">Story (9:16)</option>
+                                                            <option value="4:3">Landscape (4:3)</option>
+                                                            <option value="3:4">Portrait (3:4)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className={formLabelClass}>Negative Prompt</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g., text, blurry, watermark"
+                                                            value={advancedSettings.defaultNegativePrompt}
+                                                            onChange={(e) => handleSettingChange('defaultNegativePrompt', e.target.value)}
+                                                            className={formInputClass}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Company Logo</label>
-                                    <input type="file" onChange={handleLogoUpload} accept="image/*" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-900 file:text-cyan-300 hover:file:bg-cyan-800"/>
-                                </div>
-                            </div>
-                            <div>
-                               <label className="block text-sm font-medium text-slate-300 mb-2">Social Media Links</label>
-                               <div className="space-y-2">
-                                   {advancedSettings.socialMediaLinks.map(link => (
-                                       <div key={link.id} className="flex items-center gap-2">
-                                           <input type="text" placeholder="Platform (e.g., Twitter)" value={link.platform} onChange={e => handleSocialLinkChange(link.id, 'platform', e.target.value)} className="input-field flex-1" />
-                                           <input type="url" placeholder="URL" value={link.url} onChange={e => handleSocialLinkChange(link.id, 'url', e.target.value)} className="input-field flex-2" />
-                                           <button onClick={() => removeSocialLink(link.id)}><TrashIcon className="h-5 w-5 text-slate-400 hover:text-red-400" /></button>
-                                       </div>
-                                   ))}
-                               </div>
-                               <button onClick={addSocialLink} className="text-sm text-cyan-400 hover:text-cyan-300 mt-2">+ Add Link</button>
-                            </div>
-                        </div>
-
-                         {/* Content & SEO */}
-                        <div className="space-y-4 p-4 bg-slate-800/50 rounded-md border border-slate-600">
-                           <h4 className="font-semibold text-cyan-400">Content & SEO</h4>
-                           <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">National Language</label>
-                                <select name="nationalLanguage" value={advancedSettings.nationalLanguage} onChange={handleAdvancedChange} className="input-field">
-                                    {NATIONAL_LANGUAGES.map(lang => <option key={lang} value={lang}>{lang}</option>)}
-                                </select>
-                           </div>
-                           <div className="flex items-center gap-4 flex-wrap">
-                                <label className="flex items-center gap-2"><input type="checkbox" name="useGoogleEAT" checked={advancedSettings.useGoogleEAT} onChange={handleAdvancedChange} className="checkbox-field" /> Use Google E-E-A-T</label>
-                                <label className="flex items-center gap-2"><input type="checkbox" name="useHemingwayStyle" checked={advancedSettings.useHemingwayStyle} onChange={handleAdvancedChange} className="checkbox-field" /> Use Hemingway Style</label>
-                           </div>
-                        </div>
-
-                        {/* Strategic Directives */}
-                        <div className="space-y-4 p-4 bg-slate-800/50 rounded-md border border-slate-600">
-                           <h4 className="font-semibold text-cyan-400">Strategic Directives</h4>
-                           <div className="flex items-center gap-4 flex-wrap">
-                                <label className="flex items-center gap-2"><input type="checkbox" name="generateBacklinks" checked={advancedSettings.generateBacklinks} onChange={handleAdvancedChange} className="checkbox-field" /> Generate Backlink Strategy</label>
-                                <label className="flex items-center gap-2"><input type="checkbox" name="findTrendingTopics" checked={advancedSettings.findTrendingTopics} onChange={handleAdvancedChange} className="checkbox-field" /> Find Trending Topics</label>
-                           </div>
-                        </div>
-
-                         {/* Advanced Media Generation */}
-                         <div className="space-y-4 p-4 bg-slate-800/50 rounded-md border border-slate-600">
-                           <h4 className="font-semibold text-cyan-400">Advanced Media Generation</h4>
-                           <div className="flex items-center gap-4 flex-wrap">
-                                <label className="flex items-center gap-2"><input type="checkbox" name="insertWatermark" checked={advancedSettings.insertWatermark} onChange={handleAdvancedChange} className="checkbox-field" /> Compose images for watermark</label>
-                                <label className="flex items-center gap-2"><input type="checkbox" name="generateVerifiableText" checked={advancedSettings.generateVerifiableText} onChange={handleAdvancedChange} className="checkbox-field" /> Generate images with verifiable text</label>
-                           </div>
-                        </div>
-
-                        {/* Platform Targeting */}
-                        <div className="p-4 bg-slate-800/50 rounded-md border border-slate-600">
-                           <h4 className="font-semibold text-cyan-400 mb-2">Target Platforms</h4>
-                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {TARGET_PLATFORMS.map(platform => (
-                                    <button key={platform} onClick={() => handlePlatformSelect(platform)} className={`text-sm p-2 rounded-md transition-colors ${advancedSettings.targetPlatforms.includes(platform) ? 'bg-cyan-600 text-white' : 'bg-slate-700 hover:bg-slate-600'}`}>
-                                        {platform}
-                                    </button>
-                                ))}
-                           </div>
+                            )}
                         </div>
                     </div>
-                )}
-            </div>
-          </div>
-          
-          {error && <p className="text-red-400 text-center -mb-2">{error}</p>}
 
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleGenerateClick}
-              disabled={isLoading}
-              className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 disabled:bg-slate-600 disabled:from-slate-600 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-lg shadow-lg transition-all transform hover:scale-105 w-full md:w-auto flex items-center justify-center text-lg animate-gradient-x"
-            >
-              {isLoading ? (
-                <>
-                  <LoadingSpinner />
-                  <span className="ml-3">Generating...</span>
-                </>
-              ) : (
-                'Generate Campaign'
-              )}
-            </button>
-          </div>
+                    <div className="mt-6">
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading || !productDescription.trim()}
+                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center text-lg"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <LoadingSpinner />
+                                    <span className="ml-2">Generating...</span>
+                                </>
+                            ) : (
+                                '🚀 Generate Campaign'
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                <ResultsDisplay 
+                    results={results} 
+                    isLoading={isLoading} 
+                    error={error} 
+                    companyName={advancedSettings.companyName}
+                    defaultAspectRatio={advancedSettings.defaultAspectRatio}
+                    defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
+                />
+            </main>
         </div>
-
-        <ResultsDisplay results={results} isLoading={isLoading} error={error} companyName={advancedSettings.companyName} />
-      </main>
-      <footer className="text-center py-6 text-slate-500 text-sm">
-        <p>Powered by Google Gemini. Campaign Generator v1.0</p>
-      </footer>
-      <style>{`
-        .input-field {
-            width: 100%;
-            background-color: #1E293B;
-            border: 1px solid #475569;
-            border-radius: 0.375rem;
-            padding: 0.5rem 0.75rem;
-            color: #E2E8F0;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .input-field:focus {
-            outline: none;
-            border-color: #0891B2;
-            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.5);
-        }
-        .checkbox-field {
-            height: 1rem;
-            width: 1rem;
-            border-radius: 0.25rem;
-            background-color: #334155;
-            border-color: #475569;
-            color: #0891B2;
-            cursor: pointer;
-        }
-        .checkbox-field:checked {
-            background-color: #0891B2;
-        }
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fade-in 0.3s ease-out forwards;
-        }
-      `}</style>
-    </div>
-  );
+    );
 };
 
 export default App;

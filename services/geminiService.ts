@@ -8,15 +8,15 @@ const responseSchema = {
   properties: {
     targetAudience: { type: Type.STRING },
     keyMessaging: { type: Type.ARRAY, items: { type: Type.STRING } },
-    socialMediaStrategy: {
+    socialMediaContent: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
           platform: { type: Type.STRING },
-          strategy: { type: Type.STRING },
+          contentExample: { type: Type.STRING },
         },
-        required: ["platform", "strategy"],
+        required: ["platform", "contentExample"],
       },
     },
     seoKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -53,8 +53,22 @@ const responseSchema = {
         },
         required: ["title", "description"],
     },
+    competitorAnalysis: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                competitor: { type: Type.STRING },
+                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                strategy: { type: Type.STRING },
+                strategyExamples: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["competitor", "strengths", "weaknesses", "strategy"],
+        },
+    },
   },
-  required: ["targetAudience", "keyMessaging", "socialMediaStrategy", "seoKeywords", "adCopy"]
+  required: ["targetAudience", "keyMessaging", "socialMediaContent", "seoKeywords", "adCopy"]
 };
 
 
@@ -79,6 +93,11 @@ export const generateMarketingCampaign = async (productDescription: string, gene
   // --- Strategic Directives ---
   if (settings.generateBacklinks) prompt += `Include a practical backlink generation strategy with actionable ideas.\n`;
   if (settings.findTrendingTopics) prompt += `Include a section with trending topics relevant to the product and creative angles to leverage them.\n`;
+   if (settings.competitorWebsites.length > 0) {
+    prompt += `\n--- Competitor Analysis ---\n`;
+    prompt += `Analyze the following competitor websites:\n${settings.competitorWebsites.map(c => `- ${c.url}`).join('\n')}\n`;
+    prompt += `For each competitor, provide a summary of their strengths, weaknesses, their overall marketing strategy, and 2-3 specific examples of their current marketing tactics (e.g., 'Runs a popular influencer campaign called #BrandChallenge', 'Uses retargeting ads on Facebook with a 10% discount').\n`;
+  }
 
   // --- Media Generation ---
   if (generateMedia) {
@@ -91,7 +110,7 @@ export const generateMarketingCampaign = async (productDescription: string, gene
 
   // --- Platform Targeting ---
   if (settings.targetPlatforms.length > 0) {
-    prompt += `Tailor the social media strategy specifically for these platforms: ${settings.targetPlatforms.join(', ')}. Provide distinct strategies for each.\n`;
+    prompt += `Instead of a general strategy, generate a specific, ready-to-post content example for each of the following platforms: ${settings.targetPlatforms.join(', ')}. The content must be tailored to the platform's format and best practices (e.g., for Instagram, provide a caption with emojis and hashtags; for a Blog, provide a title and opening paragraph).\n`;
   }
 
   prompt += `Return the campaign as a JSON object adhering to the specified schema.`;
@@ -106,6 +125,9 @@ export const generateMarketingCampaign = async (productDescription: string, gene
   }
   if (!settings.findTrendingTopics) {
     delete dynamicSchema.properties.trendingTopics;
+  }
+  if (settings.competitorWebsites.length === 0) {
+    delete dynamicSchema.properties.competitorAnalysis;
   }
 
 
@@ -127,15 +149,16 @@ export const generateMarketingCampaign = async (productDescription: string, gene
   }
 };
 
-export const generateImageFromPrompt = async (prompt: string): Promise<string> => {
+export const generateImageFromPrompt = async (prompt: string, aspectRatio: string, negativePrompt?: string): Promise<string> => {
     try {
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
             prompt: prompt,
+            negativePrompt: negativePrompt,
             config: {
               numberOfImages: 1,
               outputMimeType: 'image/jpeg',
-              aspectRatio: '1:1',
+              aspectRatio: aspectRatio,
             },
         });
 
