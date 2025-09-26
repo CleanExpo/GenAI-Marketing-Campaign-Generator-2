@@ -539,6 +539,161 @@ export class BrandKitService {
           gridTemplateColumns: '1fr 1fr 1fr',
           gap: '1rem'
         }
+      },
+
+      // Additional Social Media Templates
+      {
+        id: 'youtube_thumbnail',
+        name: 'YouTube Thumbnail',
+        category: 'social_media',
+        description: 'Eye-catching thumbnail design for YouTube videos',
+        css_variables: {
+          '--thumbnail-bg': 'linear-gradient(135deg, #06b6d4, #1d4ed8)',
+          '--title-color': '#ffffff',
+          '--subtitle-color': '#f1f5f9',
+          '--overlay-shadow': '0 4px 20px rgba(0,0,0,0.4)'
+        },
+        component_overrides: {
+          background: 'var(--thumbnail-bg)',
+          color: 'var(--title-color)',
+          aspectRatio: '16/9',
+          width: '1280px',
+          height: '720px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'var(--overlay-shadow)',
+          fontSize: '48px',
+          fontWeight: 'bold'
+        }
+      },
+      {
+        id: 'tiktok_video_frame',
+        name: 'TikTok Video Frame',
+        category: 'social_media',
+        description: 'Vertical video frame template for TikTok and Reels',
+        css_variables: {
+          '--frame-bg': 'radial-gradient(circle at center, #1e3a8a, #0f172a)',
+          '--text-primary': '#ffffff',
+          '--text-accent': '#06b6d4',
+          '--frame-border': '2px solid rgba(6, 182, 212, 0.3)'
+        },
+        component_overrides: {
+          background: 'var(--frame-bg)',
+          color: 'var(--text-primary)',
+          aspectRatio: '9/16',
+          minHeight: '800px',
+          border: 'var(--frame-border)',
+          borderRadius: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '2rem 1rem'
+        }
+      },
+
+      // Additional Web Templates
+      {
+        id: 'pricing_card',
+        name: 'Pricing Card',
+        category: 'web',
+        description: 'Professional pricing table card component',
+        css_variables: {
+          '--card-bg': '#ffffff',
+          '--card-border': '#e5e7eb',
+          '--price-color': '#06b6d4',
+          '--feature-color': '#64748b',
+          '--button-bg': '#06b6d4',
+          '--button-hover': '#0891b2'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--card-bg)',
+          border: '2px solid var(--card-border)',
+          borderRadius: '1rem',
+          padding: '2rem',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          transition: 'transform 0.2s ease',
+          ':hover': {
+            transform: 'translateY(-4px)'
+          }
+        }
+      },
+      {
+        id: 'hero_banner',
+        name: 'Hero Banner',
+        category: 'web',
+        description: 'Full-width hero banner with background image support',
+        css_variables: {
+          '--hero-bg': 'linear-gradient(135deg, rgba(6, 182, 212, 0.9), rgba(29, 78, 216, 0.9))',
+          '--hero-text': '#ffffff',
+          '--hero-subtitle': '#f1f5f9',
+          '--button-primary': '#ffffff',
+          '--button-primary-text': '#06b6d4'
+        },
+        component_overrides: {
+          background: 'var(--hero-bg)',
+          color: 'var(--hero-text)',
+          minHeight: '60vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          padding: '4rem 2rem',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          position: 'relative'
+        }
+      },
+
+      // Additional Email Templates
+      {
+        id: 'welcome_email',
+        name: 'Welcome Email Template',
+        category: 'email',
+        description: 'Comprehensive welcome email with onboarding flow',
+        css_variables: {
+          '--welcome-bg': '#f8fafc',
+          '--header-bg': '#06b6d4',
+          '--content-bg': '#ffffff',
+          '--text-primary': '#1e293b',
+          '--text-secondary': '#64748b',
+          '--accent-color': '#06b6d4'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--welcome-bg)',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          maxWidth: '600px',
+          margin: '0 auto',
+          padding: '2rem',
+          borderRadius: '8px'
+        }
+      },
+
+      // Additional Presentation Template
+      {
+        id: 'infographic_slide',
+        name: 'Infographic Slide',
+        category: 'presentation',
+        description: 'Data-rich infographic slide with visual elements',
+        css_variables: {
+          '--slide-bg': '#ffffff',
+          '--primary-accent': '#06b6d4',
+          '--secondary-accent': '#1d4ed8',
+          '--text-dark': '#1e293b',
+          '--text-light': '#64748b',
+          '--data-highlight': '#f0f9ff'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--slide-bg)',
+          color: 'var(--text-dark)',
+          padding: '3rem',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2rem',
+          alignItems: 'center',
+          minHeight: '600px'
+        }
       }
     ],
     created_at: new Date(),

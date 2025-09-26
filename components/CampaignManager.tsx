@@ -1,17 +1,21 @@
-// components/CampaignManager.tsx
+// Enhanced Campaign Manager with Airtable Integration and Staff Accountability
 
 import React, { useState, useEffect } from 'react';
 import { SavedCampaign, CampaignTemplate } from '../types';
 import { CampaignStorageService } from '../services/campaignStorage';
+import { airtableService, CampaignRecord, StaffMember, ProjectRecord } from '../services/airtableService';
+import { useAuth } from '../services/authService';
 
 interface CampaignManagerProps {
   onLoadCampaign: (campaign: SavedCampaign) => void;
   onUseTemplate: (template: CampaignTemplate) => void;
   currentCampaign?: SavedCampaign;
   onSaveCurrent: (name: string, description: string, tags: string[]) => void;
-  // Add props to check if we have unsaved results
   hasUnsavedResults?: boolean;
   resultsExist?: boolean;
+  // New props for enhanced features
+  currentCampaignData?: any; // The AI-generated campaign content
+  onCampaignAssign?: (campaignId: string, staffIds: string[]) => void;
 }
 
 export const CampaignManager: React.FC<CampaignManagerProps> = ({
@@ -20,13 +24,24 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
   currentCampaign,
   onSaveCurrent,
   hasUnsavedResults = false,
-  resultsExist = false
+  resultsExist = false,
+  currentCampaignData,
+  onCampaignAssign
 }) => {
+  // Authentication
+  const { user, hasPermission } = useAuth();
   const [campaigns, setCampaigns] = useState<SavedCampaign[]>([]);
+  const [airtableCampaigns, setAirtableCampaigns] = useState<CampaignRecord[]>([]);
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'airtable' | 'assignments'>('campaigns');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [selectedCampaignForAssignment, setSelectedCampaignForAssignment] = useState<CampaignRecord | null>(null);
+  const [isLoadingAirtable, setIsLoadingAirtable] = useState(false);
+  const [airtableError, setAirtableError] = useState<string | null>(null);
 
   // Save dialog state
   const [saveName, setSaveName] = useState('');
@@ -34,13 +49,46 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
   const [saveTags, setSaveTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
 
+  // Enhanced save dialog state
+  const [saveToAirtable, setSaveToAirtable] = useState(true);
+  const [savePriority, setSavePriority] = useState<'Low' | 'Medium' | 'High' | 'Urgent'>('Medium');
+  const [saveDueDate, setSaveDueDate] = useState('');
+  const [saveAssignedStaff, setSaveAssignedStaff] = useState<string[]>([]);
+  const [saveProjectId, setSaveProjectId] = useState('');
+  const [saveEstimatedHours, setSaveEstimatedHours] = useState(8);
+
   useEffect(() => {
     loadData();
-  }, []);
+    if (user) {
+      loadAirtableData();
+    }
+  }, [user]);
 
   const loadData = () => {
     setCampaigns(CampaignStorageService.getAllCampaigns());
     setTemplates(CampaignStorageService.getTemplates());
+  };
+
+  const loadAirtableData = async () => {
+    try {
+      setIsLoadingAirtable(true);
+      setAirtableError(null);
+
+      const [campaignsData, staffData, projectsData] = await Promise.all([
+        airtableService.getCampaigns({ limit: 50 }),
+        airtableService.getStaffMembers(),
+        airtableService.getProjects({ status: ['Planning', 'Active'] })
+      ]);
+
+      setAirtableCampaigns(campaignsData);
+      setStaffMembers(staffData);
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error loading Airtable data:', error);
+      setAirtableError('Failed to load data from Airtable. Please check your connection.');
+    } finally {
+      setIsLoadingAirtable(false);
+    }
   };
 
   const filteredCampaigns = campaigns.filter(campaign =>
@@ -49,15 +97,54 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
     campaign.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleSaveCurrent = () => {
-    if (!saveName.trim()) return;
+  const handleSaveCurrent = async () => {
+    if (!saveName.trim() || !user) return;
 
-    onSaveCurrent(saveName, saveDescription, saveTags);
-    setShowSaveDialog(false);
+    try {
+      // Save to local storage first
+      onSaveCurrent(saveName, saveDescription, saveTags);
+
+      // Save to Airtable if enabled and user has permission
+      if (saveToAirtable && hasPermission('campaigns:create')) {
+        const campaignData: Omit<CampaignRecord, 'id' | 'createdAt' | 'updatedAt' | 'approvalHistory'> = {
+          title: saveName,
+          description: saveDescription,
+          status: 'Draft',
+          priority: savePriority,
+          assignedStaff: saveAssignedStaff,
+          createdBy: user.id,
+          dueDate: saveDueDate ? new Date(saveDueDate) : undefined,
+          tags: saveTags,
+          campaignData: currentCampaignData,
+          projectId: saveProjectId || undefined,
+          estimatedHours: saveEstimatedHours,
+          actualHours: 0,
+          completionPercentage: 0
+        };
+
+        await airtableService.createCampaign(campaignData);
+        await loadAirtableData();
+      }
+
+      setShowSaveDialog(false);
+      resetSaveForm();
+      loadData();
+    } catch (error) {
+      console.error('Error saving campaign:', error);
+      alert('Failed to save campaign. Please try again.');
+    }
+  };
+
+  const resetSaveForm = () => {
     setSaveName('');
     setSaveDescription('');
     setSaveTags([]);
-    loadData();
+    setSaveToAirtable(true);
+    setSavePriority('Medium');
+    setSaveDueDate('');
+    setSaveAssignedStaff([]);
+    setSaveProjectId('');
+    setSaveEstimatedHours(8);
   };
 
   const handleDeleteCampaign = async (id: string) => {
@@ -88,14 +175,51 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
     });
   };
 
-  const getStatusColor = (status: SavedCampaign['status']) => {
-    switch (status) {
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'draft': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'approved':
+      case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'draft':
+      case 'in review': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       case 'archived': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
       case 'template': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'in production': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Urgent': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'High': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      case 'Medium': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'Low': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const handleAssignStaff = async (campaignId: string, staffIds: string[]) => {
+    try {
+      await airtableService.updateCampaign(campaignId, {
+        assignedStaff: staffIds
+      }, user?.id || 'unknown');
+
+      await loadAirtableData();
+      setShowAssignDialog(false);
+      setSelectedCampaignForAssignment(null);
+
+      onCampaignAssign?.(campaignId, staffIds);
+    } catch (error) {
+      console.error('Error assigning staff:', error);
+      alert('Failed to assign staff to campaign.');
+    }
+  };
+
+  const openAssignDialog = (campaign: CampaignRecord) => {
+    setSelectedCampaignForAssignment(campaign);
+    setSaveAssignedStaff(campaign.assignedStaff || []);
+    setShowAssignDialog(true);
   };
 
   return (
@@ -167,6 +291,19 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
         <div className="absolute right-3 top-3 text-gray-400">🔍</div>
       </div>
 
+      {/* Error Display */}
+      {airtableError && (
+        <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+          ⚠️ {airtableError}
+          <button
+            onClick={loadAirtableData}
+            className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       <div className="space-y-4 max-h-96 overflow-y-auto">
         {activeTab === 'campaigns' ? (
@@ -224,6 +361,176 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
               <p className="text-sm">Create your first campaign to get started</p>
             </div>
           )
+        ) : activeTab === 'airtable' ? (
+          !isLoadingAirtable && airtableCampaigns.length > 0 ? (
+            airtableCampaigns.map((campaign) => (
+              <div key={campaign.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-white font-medium text-lg">{campaign.title}</h3>
+                    <p className="text-gray-400 text-sm mt-1">{campaign.description}</p>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <span className={`px-2 py-1 rounded border text-xs font-medium ${getStatusColor(campaign.status)}`}>
+                      {campaign.status}
+                    </span>
+                    <span className={`px-2 py-1 rounded border text-xs font-medium ${getPriorityColor(campaign.priority)}`}>
+                      {campaign.priority}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
+                  <div className="text-gray-400">
+                    <span className="font-medium">Progress:</span> {campaign.completionPercentage}%
+                  </div>
+                  <div className="text-gray-400">
+                    <span className="font-medium">Hours:</span> {campaign.actualHours}/{campaign.estimatedHours}
+                  </div>
+                  {campaign.dueDate && (
+                    <div className="text-gray-400">
+                      <span className="font-medium">Due:</span> {formatDate(campaign.dueDate)}
+                    </div>
+                  )}
+                  <div className="text-gray-400">
+                    <span className="font-medium">Team:</span> {campaign.assignedStaff?.length || 0} members
+                  </div>
+                </div>
+
+                {campaign.tags && campaign.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {campaign.tags.map((tag) => (
+                      <span key={tag} className="bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded text-xs">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {campaign.assignedStaff && campaign.assignedStaff.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-gray-400 text-sm mb-1">Assigned to:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {campaign.assignedStaff.map((staffId) => {
+                        const staff = staffMembers.find(s => s.id === staffId);
+                        return (
+                          <span key={staffId} className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">
+                            {staff?.name || 'Unknown'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const savedCampaign: SavedCampaign = {
+                        id: campaign.id,
+                        name: campaign.title,
+                        description: campaign.description,
+                        tags: campaign.tags || [],
+                        createdAt: campaign.createdAt,
+                        updatedAt: campaign.updatedAt,
+                        version: 1,
+                        status: 'active',
+                        metadata: {
+                          airtableId: campaign.id,
+                          priority: campaign.priority,
+                          assignedStaff: campaign.assignedStaff
+                        },
+                        data: campaign.campaignData
+                      };
+                      onLoadCampaign(savedCampaign);
+                    }}
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                  >
+                    📂 Load
+                  </button>
+                  {hasPermission('campaigns:assign') && (
+                    <button
+                      onClick={() => openAssignDialog(campaign)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                    >
+                      👥 Assign
+                    </button>
+                  )}
+                  {hasPermission('campaigns:update') && (
+                    <button
+                      onClick={async () => {
+                        const newStatus = campaign.status === 'Draft' ? 'In Review' :
+                                         campaign.status === 'In Review' ? 'Approved' : 'Completed';
+                        await airtableService.updateCampaign(campaign.id, { status: newStatus }, user?.id || 'unknown');
+                        await loadAirtableData();
+                      }}
+                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                    >
+                      ✅ Progress
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : !isLoadingAirtable ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-4xl mb-4">🌐</div>
+              <p>No team campaigns found</p>
+              <p className="text-sm">Save a campaign to Airtable to see it here</p>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+              <p>Loading team campaigns...</p>
+            </div>
+          )
+        ) : activeTab === 'assignments' ? (
+          <div className="space-y-4">
+            <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+              <h3 className="text-white font-medium text-lg mb-4">📊 Team Workload Overview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {staffMembers.map((staff) => {
+                  const assignedCampaigns = airtableCampaigns.filter(c =>
+                    c.assignedStaff?.includes(staff.id)
+                  );
+                  return (
+                    <div key={staff.id} className="bg-gray-600 rounded-lg p-3">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-white">
+                            {staff.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-white font-medium text-sm">{staff.name}</p>
+                          <p className="text-gray-400 text-xs">{staff.department}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Active Campaigns:</span>
+                          <span className="text-white">{assignedCampaigns.length}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Workload:</span>
+                          <span className={`font-medium ${
+                            staff.workloadScore > 80 ? 'text-red-400' :
+                            staff.workloadScore > 60 ? 'text-yellow-400' : 'text-green-400'
+                          }`}>
+                            {staff.workloadScore}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Rating:</span>
+                          <span className="text-yellow-400">{'★'.repeat(staff.performanceRating)}{'☆'.repeat(5 - staff.performanceRating)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
           templates.length > 0 ? (
             templates.map((template) => (
@@ -270,15 +577,30 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
             <h3 className="text-xl font-semibold text-white mb-4">Save Campaign</h3>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">Campaign Name*</label>
-                <input
-                  type="text"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:border-cyan-500 focus:outline-none"
-                  placeholder="My Awesome Campaign"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Campaign Name*</label>
+                  <input
+                    type="text"
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:border-cyan-500 focus:outline-none"
+                    placeholder="My Awesome Campaign"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Priority</label>
+                  <select
+                    value={savePriority}
+                    onChange={(e) => setSavePriority(e.target.value as any)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-cyan-500 focus:outline-none"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -291,6 +613,86 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
                   placeholder="Brief description of this campaign..."
                 />
               </div>
+
+              {user && hasPermission('campaigns:create') && (
+                <div>
+                  <label className="flex items-center space-x-2 mb-4">
+                    <input
+                      type="checkbox"
+                      checked={saveToAirtable}
+                      onChange={(e) => setSaveToAirtable(e.target.checked)}
+                      className="rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500"
+                    />
+                    <span className="text-gray-300 text-sm font-medium">Save to Team Dashboard (Airtable)</span>
+                  </label>
+
+                  {saveToAirtable && (
+                    <div className="space-y-4 p-4 bg-gray-600 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm font-medium mb-2">Due Date</label>
+                          <input
+                            type="datetime-local"
+                            value={saveDueDate}
+                            onChange={(e) => setSaveDueDate(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-cyan-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm font-medium mb-2">Estimated Hours</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="200"
+                            value={saveEstimatedHours}
+                            onChange={(e) => setSaveEstimatedHours(Number(e.target.value))}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-cyan-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-300 text-sm font-medium mb-2">Assign to Project (Optional)</label>
+                        <select
+                          value={saveProjectId}
+                          onChange={(e) => setSaveProjectId(e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-cyan-500 focus:outline-none"
+                        >
+                          <option value="">No Project</option>
+                          {projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                              {project.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-300 text-sm font-medium mb-2">Assign to Team Members</label>
+                        <div className="max-h-32 overflow-y-auto space-y-2">
+                          {staffMembers.map((staff) => (
+                            <label key={staff.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={saveAssignedStaff.includes(staff.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSaveAssignedStaff([...saveAssignedStaff, staff.id]);
+                                  } else {
+                                    setSaveAssignedStaff(saveAssignedStaff.filter(id => id !== staff.id));
+                                  }
+                                }}
+                                className="rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500"
+                              />
+                              <span className="text-gray-300 text-sm">{staff.name} ({staff.department})</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-gray-300 text-sm font-medium mb-2">Tags</label>
@@ -334,6 +736,80 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
                 className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg"
               >
                 Save Campaign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Assignment Dialog */}
+      {showAssignDialog && selectedCampaignForAssignment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Assign Team to: {selectedCampaignForAssignment.title}
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-3">Select Team Members:</label>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {staffMembers.map((staff) => (
+                    <label key={staff.id} className="flex items-center space-x-3 p-2 bg-gray-700 rounded">
+                      <input
+                        type="checkbox"
+                        checked={saveAssignedStaff.includes(staff.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSaveAssignedStaff([...saveAssignedStaff, staff.id]);
+                          } else {
+                            setSaveAssignedStaff(saveAssignedStaff.filter(id => id !== staff.id));
+                          }
+                        }}
+                        className="rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500"
+                      />
+                      <div className="flex-1">
+                        <p className="text-white text-sm font-medium">{staff.name}</p>
+                        <p className="text-gray-400 text-xs">{staff.department}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`text-xs ${
+                            staff.workloadScore > 80 ? 'text-red-400' :
+                            staff.workloadScore > 60 ? 'text-yellow-400' : 'text-green-400'
+                          }`}>
+                            Workload: {staff.workloadScore}%
+                          </span>
+                          <span className="text-yellow-400 text-xs">
+                            {'★'.repeat(staff.performanceRating)}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-sm text-gray-400 bg-gray-700 p-3 rounded">
+                <p className="mb-1"><strong>Selected:</strong> {saveAssignedStaff.length} team members</p>
+                <p><strong>Current Status:</strong> {selectedCampaignForAssignment.status}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAssignDialog(false);
+                  setSelectedCampaignForAssignment(null);
+                  setSaveAssignedStaff([]);
+                }}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAssignStaff(selectedCampaignForAssignment.id, saveAssignedStaff)}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg"
+              >
+                Assign Team
               </button>
             </div>
           </div>

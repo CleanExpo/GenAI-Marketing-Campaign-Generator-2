@@ -13,13 +13,28 @@ import { CampaignStorageService } from './services/campaignStorage';
 import { BrandKitService, BrandKit } from './services/brandKitService';
 import { CRMIntegrationService, CRMSyncResult, CRMConnection } from './services/crmIntegration';
 
+// New comprehensive Airtable integration imports
+import { useAuth, authService } from './services/authService';
+import { airtableService, initializeAirtable } from './services/airtableService';
+import StaffManager from './components/StaffManager';
+import ProjectManager from './components/ProjectManager';
+
 const App: React.FC = () => {
+    // Authentication state
+    const { user, isAuthenticated, login, logout, hasPermission } = useAuth();
+    const [showLogin, setShowLogin] = useState<boolean>(false);
+    const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
+
+    // Core app state
     const [productDescription, setProductDescription] = useState<string>('');
     const [generateMedia, setGenerateMedia] = useState<boolean>(true);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [results, setResults] = useState<CampaignResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+    // Navigation state for new components
+    const [activeView, setActiveView] = useState<'generator' | 'staff' | 'projects' | 'campaigns'>('generator');
 
     // Campaign Management State
     const [currentCampaign, setCurrentCampaign] = useState<SavedCampaign | null>(null);
@@ -34,6 +49,16 @@ const App: React.FC = () => {
 
     // CRM Manager State
     const [showCRMManager, setShowCRMManager] = useState<boolean>(false);
+
+    // Staff Manager State
+    const [showStaffManager, setShowStaffManager] = useState<boolean>(false);
+
+    // Project Manager State
+    const [showProjectManager, setShowProjectManager] = useState<boolean>(false);
+
+    // Airtable integration state
+    const [airtableInitialized, setAirtableInitialized] = useState<boolean>(false);
+    const [airtableError, setAirtableError] = useState<string | null>(null);
 
     // CRM Sync State
     const [crmSyncing, setCrmSyncing] = useState<boolean>(false);
@@ -94,7 +119,7 @@ const App: React.FC = () => {
         };
     }, []); // Empty dependency array for mount/unmount only
 
-    // Initialize CRM connection status on component mount
+    // Initialize CRM connection status and Airtable service on component mount
     useEffect(() => {
         const activeConnection = CRMIntegrationService.getActiveConnection();
         if (activeConnection) {
@@ -102,7 +127,41 @@ const App: React.FC = () => {
             setCrmSyncStatus('idle');
             setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
         }
-    }, []);
+
+        // Initialize Airtable service when user is authenticated
+        if (isAuthenticated && !airtableInitialized) {
+            initializeAirtableService();
+        }
+    }, [isAuthenticated, airtableInitialized]);
+
+    const initializeAirtableService = async (): Promise<void> => {
+        try {
+            await initializeAirtable();
+            setAirtableInitialized(true);
+            setAirtableError(null);
+            console.log('✅ Airtable service initialized successfully');
+        } catch (error) {
+            console.error('❌ Failed to initialize Airtable service:', error);
+            setAirtableError('Failed to connect to Airtable. Please check your API configuration.');
+        }
+    };
+
+    const handleLogin = async (): Promise<void> => {
+        try {
+            await login(loginCredentials);
+            setShowLogin(false);
+            setLoginCredentials({ email: '', password: '' });
+        } catch (error) {
+            console.error('Login failed:', error);
+            alert('Login failed. Please check your credentials.');
+        }
+    };
+
+    const handleLogout = (): void => {
+        logout();
+        setActiveView('generator');
+        setAirtableInitialized(false);
+    };
 
     // CRM Helper Functions
     const addCrmNotification = (type: 'success' | 'error' | 'warning', message: string) => {
@@ -368,53 +427,134 @@ const App: React.FC = () => {
                             </h1>
                         </div>
                         <div className="flex-1 flex justify-end gap-2">
-                            <div className="relative">
+                            {/* Authentication Button */}
+                            {!isAuthenticated ? (
                                 <button
-                                    onClick={() => setShowCRMManager(!showCRMManager)}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                        showCRMManager
-                                            ? 'bg-cyan-600 text-white'
-                                            : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                    }`}
-                                    title={crmConnection ? `CRM: Connected to ${crmConnection.provider}` : "Connect and sync with CRM systems"}
+                                    onClick={() => setShowLogin(true)}
+                                    className="px-4 py-2 rounded-lg font-medium transition-all bg-green-600 hover:bg-green-700 text-white"
+                                    title="Login to access team features"
                                 >
-                                    🔗 {showCRMManager ? 'Hide' : 'CRM'}
-                                    {crmConnection && (
-                                        <span className={`ml-1 w-2 h-2 rounded-full inline-block ${
-                                            crmSyncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
-                                            crmSyncStatus === 'success' ? 'bg-green-400' :
-                                            crmSyncStatus === 'error' ? 'bg-red-400' :
-                                            'bg-blue-400'
-                                        }`}></span>
-                                    )}
+                                    🔐 Login
                                 </button>
-                                {crmSyncing && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3">
-                                        <div className="w-3 h-3 bg-cyan-400 rounded-full animate-ping"></div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 px-3 py-1 bg-green-600/20 text-green-400 rounded-lg border border-green-500/30">
+                                        <span>👤</span>
+                                        <span className="text-sm">{user?.name}</span>
+                                        <span className="text-xs opacity-75">({user?.role})</span>
                                     </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => setShowBrandKitManager(!showBrandKitManager)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                    showBrandKitManager
-                                        ? 'bg-cyan-600 text-white'
-                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                }`}
-                                title="Manage brand assets, colors, and guidelines"
-                            >
-                                🎨 {showBrandKitManager ? 'Hide' : 'Brand Kit'}
-                            </button>
-                            <button
-                                onClick={() => setShowCampaignManager(!showCampaignManager)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                    showCampaignManager
-                                        ? 'bg-cyan-600 text-white'
-                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                }`}
-                            >
-                                📁 {showCampaignManager ? 'Hide' : 'Campaigns'}
-                            </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all"
+                                        title="Logout"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Navigation Tabs - only show if authenticated */}
+                            {isAuthenticated && (
+                                <>
+                                    <button
+                                        onClick={() => setActiveView('generator')}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            activeView === 'generator'
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                        title="AI Campaign Generator"
+                                    >
+                                        🚀 Generator
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveView('campaigns')}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            activeView === 'campaigns'
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                        title="Campaign & Project Management"
+                                    >
+                                        📁 Campaigns
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveView('staff')}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            activeView === 'staff'
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                        title="Team Management & Accountability"
+                                    >
+                                        👥 Team
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveView('projects')}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            activeView === 'projects'
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                        title="Project Management & Tracking"
+                                    >
+                                        📊 Projects
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Legacy buttons for backward compatibility */}
+                            {isAuthenticated && activeView === 'generator' && (
+                                <>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowCRMManager(!showCRMManager)}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                                showCRMManager
+                                                    ? 'bg-cyan-600 text-white'
+                                                    : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                            }`}
+                                            title={crmConnection ? `CRM: Connected to ${crmConnection.provider}` : "Connect and sync with CRM systems"}
+                                        >
+                                            🔗 {showCRMManager ? 'Hide' : 'CRM'}
+                                            {crmConnection && (
+                                                <span className={`ml-1 w-2 h-2 rounded-full inline-block ${
+                                                    crmSyncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
+                                                    crmSyncStatus === 'success' ? 'bg-green-400' :
+                                                    crmSyncStatus === 'error' ? 'bg-red-400' :
+                                                    'bg-blue-400'
+                                                }`}></span>
+                                            )}
+                                        </button>
+                                        {crmSyncing && (
+                                            <div className="absolute -top-1 -right-1 w-3 h-3">
+                                                <div className="w-3 h-3 bg-cyan-400 rounded-full animate-ping"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setShowBrandKitManager(!showBrandKitManager)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            showBrandKitManager
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                        title="Manage brand assets, colors, and guidelines"
+                                    >
+                                        🎨 {showBrandKitManager ? 'Hide' : 'Brand Kit'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCampaignManager(!showCampaignManager)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            showCampaignManager
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                    >
+                                        📁 {showCampaignManager ? 'Hide' : 'Local Campaigns'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                     <p className="text-slate-400 mt-2 text-lg">
@@ -482,11 +622,13 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
-                    <div className="space-y-6">
-                        <div>
-                            <label htmlFor="productDescription" className="block text-lg font-medium text-slate-300 mb-2">
-                                Describe your product, service, or idea
+                {/* Main Generator Form - only show in generator view */}
+                {activeView === 'generator' && (
+                    <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
+                        <div className="space-y-6">
+                            <div>
+                                <label htmlFor="productDescription" className="block text-lg font-medium text-slate-300 mb-2">
+                                    Describe your product, service, or idea
                             </label>
                             <textarea
                                 id="productDescription"
@@ -732,34 +874,138 @@ const App: React.FC = () => {
                         </button>
                     </div>
                 </div>
+                )}
 
-                {/* Campaign Manager */}
-                {showCampaignManager && (
+                {/* Dynamic Content Based on Active View */}
+                {activeView === 'generator' && (
+                    <>
+                        {/* Campaign Manager - Legacy for backward compatibility */}
+                        {showCampaignManager && (
+                            <div className="mt-8">
+                                <CampaignManager
+                                    onLoadCampaign={handleLoadCampaign}
+                                    onUseTemplate={handleUseTemplate}
+                                    currentCampaign={currentCampaign}
+                                    onSaveCurrent={handleSaveCurrent}
+                                    resultsExist={!!results}
+                                    hasUnsavedResults={!!results && (!currentCampaign ||
+                                        (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                    )}
+                                    currentCampaignData={results}
+                                />
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Team Management View */}
+                {activeView === 'staff' && isAuthenticated && (
                     <div className="mt-8">
-                        <CampaignManager
-                            onLoadCampaign={handleLoadCampaign}
-                            onUseTemplate={handleUseTemplate}
-                            currentCampaign={currentCampaign}
-                            onSaveCurrent={handleSaveCurrent}
-                            resultsExist={!!results}
-                            hasUnsavedResults={!!results && (!currentCampaign ||
-                                (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
-                            )}
-                        />
+                        {airtableError && (
+                            <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+                                ⚠️ {airtableError}
+                                <button
+                                    onClick={initializeAirtableService}
+                                    className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                >
+                                    Retry Connection
+                                </button>
+                            </div>
+                        )}
+                        {airtableInitialized ? (
+                            <StaffManager currentUserId={user?.id} />
+                        ) : (
+                            <div className="flex items-center justify-center py-16">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                                    <p className="text-gray-400">Initializing team management...</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                <ResultsDisplay
-                    results={results}
-                    isLoading={isLoading}
-                    error={error}
-                    companyName={advancedSettings.companyName}
-                    defaultAspectRatio={advancedSettings.defaultAspectRatio}
-                    defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
-                    defaultImageStyle={advancedSettings.defaultImageStyle}
-                    defaultCreativityLevel={advancedSettings.defaultCreativityLevel}
-                    onExportClick={() => setShowExportManager(true)}
-                />
+                {/* Project Management View */}
+                {activeView === 'projects' && isAuthenticated && (
+                    <div className="mt-8">
+                        {airtableError && (
+                            <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+                                ⚠️ {airtableError}
+                                <button
+                                    onClick={initializeAirtableService}
+                                    className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                >
+                                    Retry Connection
+                                </button>
+                            </div>
+                        )}
+                        {airtableInitialized ? (
+                            <ProjectManager />
+                        ) : (
+                            <div className="flex items-center justify-center py-16">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                                    <p className="text-gray-400">Initializing project management...</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Enhanced Campaign Management View */}
+                {activeView === 'campaigns' && isAuthenticated && (
+                    <div className="mt-8">
+                        {airtableError && (
+                            <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+                                ⚠️ {airtableError}
+                                <button
+                                    onClick={initializeAirtableService}
+                                    className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                >
+                                    Retry Connection
+                                </button>
+                            </div>
+                        )}
+                        {airtableInitialized ? (
+                            <CampaignManager
+                                onLoadCampaign={handleLoadCampaign}
+                                onUseTemplate={handleUseTemplate}
+                                currentCampaign={currentCampaign}
+                                onSaveCurrent={handleSaveCurrent}
+                                resultsExist={!!results}
+                                hasUnsavedResults={!!results && (!currentCampaign ||
+                                    (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                )}
+                                currentCampaignData={results}
+                                onCampaignAssign={(campaignId, staffIds) => {
+                                    console.log(`Campaign ${campaignId} assigned to:`, staffIds);
+                                }}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center py-16">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                                    <p className="text-gray-400">Initializing campaign management...</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Results Display - only show in generator view */}
+                {activeView === 'generator' && (
+                    <ResultsDisplay
+                        results={results}
+                        isLoading={isLoading}
+                        error={error}
+                        companyName={advancedSettings.companyName}
+                        defaultAspectRatio={advancedSettings.defaultAspectRatio}
+                        defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
+                        defaultImageStyle={advancedSettings.defaultImageStyle}
+                        defaultCreativityLevel={advancedSettings.defaultCreativityLevel}
+                        onExportClick={() => setShowExportManager(true)}
+                    />
+                )}
 
                 {/* Export Manager */}
                 <ExportManager
@@ -776,24 +1022,116 @@ const App: React.FC = () => {
                     onBrandKitUpdate={handleBrandKitUpdate}
                 />
 
-                {/* CRM Manager */}
-                <CRMManager
-                    isVisible={showCRMManager}
-                    onClose={() => setShowCRMManager(false)}
-                    onConnectionChange={() => {
-                        // Refresh CRM connection status when connections are modified
-                        const activeConnection = CRMIntegrationService.getActiveConnection();
-                        setCrmConnection(activeConnection);
-                        if (activeConnection) {
-                            setCrmSyncStatus('idle');
-                            setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
-                            addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
-                        } else {
-                            setCrmSyncStatus('idle');
-                            setCrmSyncMessage('');
-                        }
-                    }}
-                />
+                {/* CRM Manager - only show in generator view */}
+                {activeView === 'generator' && (
+                    <CRMManager
+                        isVisible={showCRMManager}
+                        onClose={() => setShowCRMManager(false)}
+                        onConnectionChange={() => {
+                            // Refresh CRM connection status when connections are modified
+                            const activeConnection = CRMIntegrationService.getActiveConnection();
+                            setCrmConnection(activeConnection);
+                            if (activeConnection) {
+                                setCrmSyncStatus('idle');
+                                setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
+                                addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
+                            } else {
+                                setCrmSyncStatus('idle');
+                                setCrmSyncMessage('');
+                            }
+                        }}
+                    />
+                )}
+
+                {/* Login Modal */}
+                {showLogin && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-slate-800 border border-slate-600 rounded-lg p-6 w-full max-w-md mx-4">
+                            <h2 className="text-2xl font-bold text-white mb-6 text-center">
+                                🔐 Team Login
+                            </h2>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-slate-300 text-sm font-medium mb-2">Email</label>
+                                    <input
+                                        type="email"
+                                        value={loginCredentials.email}
+                                        onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
+                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
+                                        placeholder="Enter your email"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-slate-300 text-sm font-medium mb-2">Password</label>
+                                    <input
+                                        type="password"
+                                        value={loginCredentials.password}
+                                        onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
+                                        placeholder="Enter your password"
+                                        onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                                    />
+                                </div>
+
+                                <div className="text-sm text-slate-400 bg-slate-700 p-3 rounded">
+                                    <p className="font-medium mb-2">Demo Accounts:</p>
+                                    <div className="space-y-1 text-xs">
+                                        <p>• <strong>Admin:</strong> zenithfresh25@gmail.com (any password)</p>
+                                        <p>• <strong>Manager:</strong> support@carsi.com.au (any password)</p>
+                                        <p>• <strong>Creator:</strong> ranamuzamil1199@gmail.com (any password)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => setShowLogin(false)}
+                                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleLogin}
+                                    disabled={!loginCredentials.email}
+                                    className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-all"
+                                >
+                                    Login
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Airtable Status Indicator */}
+                {isAuthenticated && (
+                    <div className="fixed bottom-4 right-4 z-40">
+                        <div className={`px-3 py-2 rounded-lg text-sm border flex items-center gap-2 ${
+                            airtableInitialized
+                                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                : airtableError
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                    : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                        }`}>
+                            {airtableInitialized ? (
+                                <>
+                                    <span>✅</span>
+                                    <span>Airtable Connected</span>
+                                </>
+                            ) : airtableError ? (
+                                <>
+                                    <span>❌</span>
+                                    <span>Airtable Error</span>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-400"></div>
+                                    <span>Connecting...</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );
