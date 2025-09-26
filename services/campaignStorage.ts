@@ -1,6 +1,7 @@
 // services/campaignStorage.ts
 
 import { SavedCampaign, CampaignTemplate, UserProfile, CampaignExport } from '../types';
+import { CRMIntegrationService } from './crmIntegration';
 
 export class CampaignStorageService {
   private static readonly STORAGE_KEYS = {
@@ -27,8 +28,16 @@ export class CampaignStorageService {
     campaigns.push(savedCampaign);
     this.storeCampaigns(campaigns);
 
-    // Future: Send to CRM/Database
-    // await this.syncToCRM(savedCampaign);
+    // Auto-sync to CRM if enabled
+    try {
+      const activeConnection = CRMIntegrationService.getActiveConnection();
+      if (activeConnection && activeConnection.configuration.syncSettings.syncOnCreate) {
+        await CRMIntegrationService.syncCampaign(savedCampaign);
+      }
+    } catch (error) {
+      console.warn('CRM sync failed on campaign creation:', error);
+      // Don't fail the save operation if CRM sync fails
+    }
 
     return savedCampaign;
   }
@@ -51,8 +60,16 @@ export class CampaignStorageService {
     campaigns[index] = updatedCampaign;
     this.storeCampaigns(campaigns);
 
-    // Future: Sync to CRM/Database
-    // await this.syncToCRM(updatedCampaign);
+    // Auto-sync to CRM if enabled
+    try {
+      const activeConnection = CRMIntegrationService.getActiveConnection();
+      if (activeConnection && activeConnection.configuration.syncSettings.syncOnUpdate) {
+        await CRMIntegrationService.syncCampaign(updatedCampaign);
+      }
+    } catch (error) {
+      console.warn('CRM sync failed on campaign update:', error);
+      // Don't fail the update operation if CRM sync fails
+    }
 
     return updatedCampaign;
   }

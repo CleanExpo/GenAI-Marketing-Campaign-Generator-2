@@ -5,6 +5,7 @@ import { ResultsDisplay } from './components/ResultsDisplay';
 import { CampaignManager } from './components/CampaignManager';
 import { ExportManager } from './components/ExportManager';
 import { BrandKitManager } from './components/BrandKitManager';
+import { CRMManager } from './components/CRMManager';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
@@ -29,6 +30,9 @@ const App: React.FC = () => {
     // Brand Kit Manager State
     const [showBrandKitManager, setShowBrandKitManager] = useState<boolean>(false);
     const [currentBrandKit, setCurrentBrandKit] = useState<BrandKit>(BrandKitService.getCurrentBrandKit());
+
+    // CRM Manager State
+    const [showCRMManager, setShowCRMManager] = useState<boolean>(false);
 
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
@@ -264,6 +268,17 @@ const App: React.FC = () => {
                             </h1>
                         </div>
                         <div className="flex-1 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowCRMManager(!showCRMManager)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    showCRMManager
+                                        ? 'bg-cyan-600 text-white'
+                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                }`}
+                                title="Connect and sync with CRM systems"
+                            >
+                                🔗 {showCRMManager ? 'Hide' : 'CRM'}
+                            </button>
                             <button
                                 onClick={() => setShowBrandKitManager(!showBrandKitManager)}
                                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -591,6 +606,12 @@ const App: React.FC = () => {
                     isVisible={showBrandKitManager}
                     onClose={() => setShowBrandKitManager(false)}
                     onBrandKitUpdate={handleBrandKitUpdate}
+                />
+
+                {/* CRM Manager */}
+                <CRMManager
+                    isVisible={showCRMManager}
+                    onClose={() => setShowCRMManager(false)}
                 />
             </main>
         </div>
