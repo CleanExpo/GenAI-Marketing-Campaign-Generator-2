@@ -741,10 +741,16 @@ export class AirtableProvider extends CRMProvider {
 
       return response.json();
     } catch (error: any) {
+      // Handle specific JSON parsing errors (common when Airtable returns HTML error pages)
+      if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
+        throw new Error('Airtable API returned an HTML error page. This usually means invalid credentials or the API endpoint is unreachable. Please check your Airtable token and base ID.');
+      }
+
       // Provide helpful error messages for common issues
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         throw new Error(`Network Error: Unable to connect to Airtable API. Please check your internet connection and API credentials. ${error.message}`);
       }
+
       throw error;
     }
   }
