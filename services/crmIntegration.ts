@@ -465,7 +465,7 @@ export class AirtableProvider extends CRMProvider {
   constructor(connection: CRMConnection) {
     super(connection);
     // Use environment variables if available, otherwise fall back to connection credentials
-    this.apiKey = import.meta.env.VITE_AIRTABLE_TOKEN || connection.configuration.credentials.apiKey || '';
+    this.apiKey = import.meta.env.VITE_AIRTABLE_API_KEY || connection.configuration.credentials.apiKey || '';
     this.baseId = import.meta.env.VITE_AIRTABLE_BASE_ID || connection.configuration.credentials.domain || ''; // Using domain field for base ID
 
     // Use Vercel serverless function in production, Vite proxy in development
@@ -1205,10 +1205,11 @@ export class CRMIntegrationService {
 
   // Auto-create Airtable connection if environment variables are available
   private static initializeEnvironmentConnections(): void {
-    const airtableToken = import.meta.env.VITE_AIRTABLE_TOKEN;
+    // Use the correct Airtable.js environment variable names
+    const airtableApiKey = import.meta.env.VITE_AIRTABLE_API_KEY;
     const airtableBaseId = import.meta.env.VITE_AIRTABLE_BASE_ID;
 
-    if (airtableToken && airtableBaseId) {
+    if (airtableApiKey && airtableBaseId) {
       // Check if we already have an environment-based Airtable connection
       const existingEnvConnection = this.connections.find(
         conn => conn.provider === 'airtable' && conn.name === 'Environment Airtable'
@@ -1222,7 +1223,7 @@ export class CRMIntegrationService {
           configuration: {
             provider: 'airtable',
             credentials: {
-              apiKey: airtableToken,
+              apiKey: airtableApiKey,
               domain: airtableBaseId
             },
             fieldMappings: [],
@@ -1261,12 +1262,13 @@ export class CRMIntegrationService {
     airtableConfigured: boolean;
     environmentType: 'development' | 'production';
   } {
-    const hasAirtableToken = !!(import.meta.env.VITE_AIRTABLE_TOKEN);
+    // Use correct Airtable.js environment variable names
+    const hasAirtableApiKey = !!(import.meta.env.VITE_AIRTABLE_API_KEY);
     const hasAirtableBaseId = !!(import.meta.env.VITE_AIRTABLE_BASE_ID);
 
     return {
-      hasAirtableConfig: hasAirtableToken && hasAirtableBaseId,
-      airtableConfigured: hasAirtableToken || hasAirtableBaseId,
+      hasAirtableConfig: hasAirtableApiKey && hasAirtableBaseId,
+      airtableConfigured: hasAirtableApiKey || hasAirtableBaseId,
       environmentType: import.meta.env.PROD ? 'production' : 'development'
     };
   }
