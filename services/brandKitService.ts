@@ -242,6 +242,7 @@ export class BrandKitService {
       }
     },
     templates: [
+      // Social Media Templates
       {
         id: 'social_card',
         name: 'Social Media Card',
@@ -260,10 +261,63 @@ export class BrandKitService {
         }
       },
       {
+        id: 'instagram_story',
+        name: 'Instagram Story',
+        category: 'social_media',
+        description: 'Vertical story template optimized for Instagram and Facebook',
+        css_variables: {
+          '--gradient-start': '#06b6d4',
+          '--gradient-end': '#1d4ed8',
+          '--overlay-opacity': '0.7'
+        },
+        component_overrides: {
+          background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-end))',
+          aspectRatio: '9/16',
+          minHeight: '600px'
+        }
+      },
+      {
+        id: 'linkedin_post',
+        name: 'LinkedIn Professional Post',
+        category: 'social_media',
+        description: 'Professional-looking template for LinkedIn business posts',
+        css_variables: {
+          '--background-color': '#ffffff',
+          '--text-color': '#2d3748',
+          '--accent-color': '#06b6d4',
+          '--border-color': '#e2e8f0'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }
+      },
+      {
+        id: 'twitter_card',
+        name: 'Twitter Card',
+        category: 'social_media',
+        description: 'Compact card design perfect for Twitter/X posts',
+        css_variables: {
+          '--background-color': '#1a202c',
+          '--text-color': '#ffffff',
+          '--accent-color': '#06b6d4'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+          maxWidth: '600px',
+          padding: '1.5rem'
+        }
+      },
+
+      // Web Templates
+      {
         id: 'campaign_header',
         name: 'Campaign Header',
         category: 'web',
-        description: 'Header component for campaign displays',
+        description: 'Hero header component for campaign landing pages',
         css_variables: {
           '--gradient-start': '#06b6d4',
           '--gradient-end': '#1d4ed8',
@@ -271,7 +325,219 @@ export class BrandKitService {
         },
         component_overrides: {
           background: 'linear-gradient(to right, var(--gradient-start), var(--gradient-end))',
-          textShadow: 'var(--text-shadow)'
+          textShadow: 'var(--text-shadow)',
+          minHeight: '400px'
+        }
+      },
+      {
+        id: 'feature_card',
+        name: 'Feature Card',
+        category: 'web',
+        description: 'Card component for showcasing product features',
+        css_variables: {
+          '--card-background': '#ffffff',
+          '--card-shadow': '0 4px 6px rgba(0,0,0,0.1)',
+          '--border-radius': '0.75rem'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--card-background)',
+          boxShadow: 'var(--card-shadow)',
+          borderRadius: 'var(--border-radius)',
+          padding: '2rem'
+        }
+      },
+      {
+        id: 'cta_banner',
+        name: 'Call-to-Action Banner',
+        category: 'web',
+        description: 'Attention-grabbing banner for conversions',
+        css_variables: {
+          '--banner-bg': '#06b6d4',
+          '--banner-text': '#ffffff',
+          '--button-bg': '#1d4ed8',
+          '--button-hover': '#1e3a8a'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--banner-bg)',
+          color: 'var(--banner-text)',
+          padding: '3rem 2rem',
+          textAlign: 'center'
+        }
+      },
+      {
+        id: 'testimonial_card',
+        name: 'Testimonial Card',
+        category: 'web',
+        description: 'Customer testimonial display component',
+        css_variables: {
+          '--testimonial-bg': '#f8fafc',
+          '--quote-color': '#64748b',
+          '--author-color': '#1e293b'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--testimonial-bg)',
+          borderLeft: '4px solid #06b6d4',
+          padding: '2rem'
+        }
+      },
+
+      // Email Templates
+      {
+        id: 'email_header',
+        name: 'Email Header',
+        category: 'email',
+        description: 'Professional email header with branding',
+        css_variables: {
+          '--email-bg': '#ffffff',
+          '--header-bg': '#0f172a',
+          '--header-text': '#ffffff'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--header-bg)',
+          color: 'var(--header-text)',
+          padding: '2rem',
+          textAlign: 'center'
+        }
+      },
+      {
+        id: 'newsletter_template',
+        name: 'Newsletter Layout',
+        category: 'email',
+        description: 'Complete newsletter template with sections',
+        css_variables: {
+          '--newsletter-bg': '#ffffff',
+          '--section-border': '#e5e7eb',
+          '--link-color': '#06b6d4'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--newsletter-bg)',
+          maxWidth: '600px',
+          margin: '0 auto'
+        }
+      },
+      {
+        id: 'email_cta',
+        name: 'Email CTA Button',
+        category: 'email',
+        description: 'High-converting call-to-action button for emails',
+        css_variables: {
+          '--button-bg': '#06b6d4',
+          '--button-text': '#ffffff',
+          '--button-hover': '#0891b2'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--button-bg)',
+          color: 'var(--button-text)',
+          padding: '12px 24px',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          display: 'inline-block'
+        }
+      },
+
+      // Presentation Templates
+      {
+        id: 'slide_title',
+        name: 'Presentation Title Slide',
+        category: 'presentation',
+        description: 'Professional title slide for presentations',
+        css_variables: {
+          '--slide-bg': '#0f172a',
+          '--title-color': '#ffffff',
+          '--subtitle-color': '#94a3b8'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--slide-bg)',
+          color: 'var(--title-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '600px'
+        }
+      },
+      {
+        id: 'slide_content',
+        name: 'Content Slide',
+        category: 'presentation',
+        description: 'Standard content slide with bullet points',
+        css_variables: {
+          '--slide-bg': '#ffffff',
+          '--heading-color': '#1e293b',
+          '--text-color': '#475569'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--slide-bg)',
+          color: 'var(--text-color)',
+          padding: '3rem'
+        }
+      },
+      {
+        id: 'slide_chart',
+        name: 'Data Visualization Slide',
+        category: 'presentation',
+        description: 'Slide template optimized for charts and graphs',
+        css_variables: {
+          '--slide-bg': '#f8fafc',
+          '--chart-accent': '#06b6d4',
+          '--grid-color': '#e2e8f0'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--slide-bg)',
+          padding: '2rem'
+        }
+      },
+
+      // Print Templates
+      {
+        id: 'business_card',
+        name: 'Business Card',
+        category: 'print',
+        description: 'Standard business card design template',
+        css_variables: {
+          '--card-bg': '#ffffff',
+          '--primary-text': '#1e293b',
+          '--accent-color': '#06b6d4'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--card-bg)',
+          width: '3.5in',
+          height: '2in',
+          padding: '0.25in'
+        }
+      },
+      {
+        id: 'flyer_template',
+        name: 'Marketing Flyer',
+        category: 'print',
+        description: 'A4 flyer template for marketing materials',
+        css_variables: {
+          '--flyer-bg': '#ffffff',
+          '--header-bg': '#06b6d4',
+          '--text-color': '#1e293b'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--flyer-bg)',
+          width: '210mm',
+          height: '297mm',
+          padding: '20mm'
+        }
+      },
+      {
+        id: 'brochure_fold',
+        name: 'Tri-fold Brochure',
+        category: 'print',
+        description: 'Professional tri-fold brochure layout',
+        css_variables: {
+          '--brochure-bg': '#ffffff',
+          '--panel-border': '#e5e7eb',
+          '--heading-color': '#1e293b'
+        },
+        component_overrides: {
+          backgroundColor: 'var(--brochure-bg)',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '1rem'
         }
       }
     ],
@@ -456,6 +722,129 @@ export class BrandKitService {
       return brandKit.templates.filter(template => template.category === category);
     }
     return brandKit.templates;
+  }
+
+  // Add custom template
+  static addTemplate(template: Omit<BrandTemplate, 'id'>): BrandKit {
+    const brandKit = this.getCurrentBrandKit();
+    const newTemplate: BrandTemplate = {
+      ...template,
+      id: `custom_${Date.now()}`
+    };
+
+    const updatedTemplates = [...brandKit.templates, newTemplate];
+    return this.saveBrandKit({ templates: updatedTemplates });
+  }
+
+  // Update existing template
+  static updateTemplate(templateId: string, updates: Partial<BrandTemplate>): BrandKit {
+    const brandKit = this.getCurrentBrandKit();
+    const updatedTemplates = brandKit.templates.map(template =>
+      template.id === templateId ? { ...template, ...updates } : template
+    );
+    return this.saveBrandKit({ templates: updatedTemplates });
+  }
+
+  // Delete template
+  static deleteTemplate(templateId: string): BrandKit {
+    const brandKit = this.getCurrentBrandKit();
+    const updatedTemplates = brandKit.templates.filter(template => template.id !== templateId);
+    return this.saveBrandKit({ templates: updatedTemplates });
+  }
+
+  // Duplicate template
+  static duplicateTemplate(templateId: string): BrandKit {
+    const brandKit = this.getCurrentBrandKit();
+    const originalTemplate = brandKit.templates.find(t => t.id === templateId);
+
+    if (!originalTemplate) {
+      throw new Error('Template not found');
+    }
+
+    const duplicatedTemplate: BrandTemplate = {
+      ...originalTemplate,
+      id: `${originalTemplate.id}_copy_${Date.now()}`,
+      name: `${originalTemplate.name} (Copy)`
+    };
+
+    const updatedTemplates = [...brandKit.templates, duplicatedTemplate];
+    return this.saveBrandKit({ templates: updatedTemplates });
+  }
+
+  // Apply brand colors to template
+  static applyBrandColorsToTemplate(templateId: string): BrandKit {
+    const brandKit = this.getCurrentBrandKit();
+    const template = brandKit.templates.find(t => t.id === templateId);
+
+    if (!template) {
+      throw new Error('Template not found');
+    }
+
+    const updatedCssVariables = {
+      ...template.css_variables,
+      '--brand-primary': brandKit.assets.colors.primary,
+      '--brand-secondary': brandKit.assets.colors.secondary,
+      '--brand-accent': brandKit.assets.colors.accent || brandKit.assets.colors.primary,
+      '--brand-text-primary': brandKit.assets.colors.text.primary,
+      '--brand-text-secondary': brandKit.assets.colors.text.secondary
+    };
+
+    return this.updateTemplate(templateId, { css_variables: updatedCssVariables });
+  }
+
+  // Generate template CSS
+  static generateTemplateCSS(template: BrandTemplate): string {
+    const cssRules: string[] = [`/* Template: ${template.name} */`];
+
+    // Add CSS variables
+    if (Object.keys(template.css_variables).length > 0) {
+      cssRules.push(`.template-${template.id} {`);
+      Object.entries(template.css_variables).forEach(([key, value]) => {
+        cssRules.push(`  ${key}: ${value};`);
+      });
+      cssRules.push(`}`);
+    }
+
+    // Add component overrides as CSS
+    if (Object.keys(template.component_overrides).length > 0) {
+      cssRules.push(`.template-${template.id} .component {`);
+      Object.entries(template.component_overrides).forEach(([key, value]) => {
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+        cssRules.push(`  ${cssKey}: ${value};`);
+      });
+      cssRules.push(`}`);
+    }
+
+    return cssRules.join('\n');
+  }
+
+  // Get template categories with counts
+  static getTemplateCategoriesWithCounts(): Array<{
+    category: BrandTemplate['category'];
+    name: string;
+    count: number;
+    icon: string;
+  }> {
+    const brandKit = this.getCurrentBrandKit();
+    const categories = ['social_media', 'web', 'email', 'presentation', 'print'] as const;
+
+    return categories.map(category => {
+      const count = brandKit.templates.filter(t => t.category === category).length;
+      const categoryInfo = {
+        social_media: { name: 'Social Media', icon: '📱' },
+        web: { name: 'Web Components', icon: '🌐' },
+        email: { name: 'Email Marketing', icon: '📧' },
+        presentation: { name: 'Presentations', icon: '📊' },
+        print: { name: 'Print Materials', icon: '🖨️' }
+      };
+
+      return {
+        category,
+        name: categoryInfo[category].name,
+        count,
+        icon: categoryInfo[category].icon
+      };
+    });
   }
 
   // Helper methods
