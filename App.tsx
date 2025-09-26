@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateMarketingCampaign } from './services/geminiService';
 import { CampaignResult, AdvancedSettings, SavedCampaign, CampaignTemplate } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { CampaignManager } from './components/CampaignManager';
 import { ExportManager } from './components/ExportManager';
+import { BrandKitManager } from './components/BrandKitManager';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
 import { CampaignStorageService } from './services/campaignStorage';
+import { BrandKitService, BrandKit } from './services/brandKitService';
 
 const App: React.FC = () => {
     const [productDescription, setProductDescription] = useState<string>('');
@@ -23,6 +25,10 @@ const App: React.FC = () => {
 
     // Export Manager State
     const [showExportManager, setShowExportManager] = useState<boolean>(false);
+
+    // Brand Kit Manager State
+    const [showBrandKitManager, setShowBrandKitManager] = useState<boolean>(false);
+    const [currentBrandKit, setCurrentBrandKit] = useState<BrandKit>(BrandKitService.getCurrentBrandKit());
 
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
@@ -44,6 +50,32 @@ const App: React.FC = () => {
         defaultImageStyle: 'Photorealistic',
         defaultCreativityLevel: 7,
     });
+
+    // Initialize brand kit CSS variables on component mount
+    useEffect(() => {
+        const cssVars = BrandKitService.generateCSSVariables(currentBrandKit);
+        const styleElement = document.createElement('style');
+        styleElement.id = 'brand-kit-styles';
+        styleElement.textContent = cssVars;
+        document.head.appendChild(styleElement);
+
+        // Apply initial brand kit settings to advanced settings
+        const brandedSettings = BrandKitService.applyToCampaignSettings(advancedSettings);
+        setAdvancedSettings(prev => ({
+            ...prev,
+            brandColors: brandedSettings.brandColors,
+            companyLogo: brandedSettings.companyLogo,
+            defaultImageStyle: brandedSettings.defaultImageStyle
+        }));
+
+        return () => {
+            // Cleanup on unmount
+            const existingStyle = document.getElementById('brand-kit-styles');
+            if (existingStyle) {
+                document.head.removeChild(existingStyle);
+            }
+        };
+    }, []); // Empty dependency array for mount/unmount only
 
     const handleGenerate = async () => {
         if (!productDescription.trim()) {
@@ -128,6 +160,21 @@ const App: React.FC = () => {
         } catch (err: any) {
             setError(`Failed to update campaign: ${err.message}`);
         }
+    };
+
+    const handleBrandKitUpdate = (updatedBrandKit: BrandKit) => {
+        setCurrentBrandKit(updatedBrandKit);
+
+        // Apply brand kit to current advanced settings
+        const brandedSettings = BrandKitService.applyToCampaignSettings(advancedSettings);
+        setAdvancedSettings(brandedSettings);
+
+        // Apply CSS variables to the page
+        const cssVars = BrandKitService.generateCSSVariables(updatedBrandKit);
+        const styleElement = document.getElementById('brand-kit-styles') || document.createElement('style');
+        styleElement.id = 'brand-kit-styles';
+        styleElement.textContent = cssVars;
+        document.head.appendChild(styleElement);
     };
 
     const handleSettingChange = (field: keyof AdvancedSettings, value: any) => {
@@ -216,7 +263,18 @@ const App: React.FC = () => {
                                 AI Marketing Campaign Generator
                             </h1>
                         </div>
-                        <div className="flex-1 flex justify-end">
+                        <div className="flex-1 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowBrandKitManager(!showBrandKitManager)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    showBrandKitManager
+                                        ? 'bg-cyan-600 text-white'
+                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                }`}
+                                title="Manage brand assets, colors, and guidelines"
+                            >
+                                🎨 {showBrandKitManager ? 'Hide' : 'Brand Kit'}
+                            </button>
                             <button
                                 onClick={() => setShowCampaignManager(!showCampaignManager)}
                                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -526,6 +584,13 @@ const App: React.FC = () => {
                     results={results}
                     isVisible={showExportManager}
                     onClose={() => setShowExportManager(false)}
+                />
+
+                {/* Brand Kit Manager */}
+                <BrandKitManager
+                    isVisible={showBrandKitManager}
+                    onClose={() => setShowBrandKitManager(false)}
+                    onBrandKitUpdate={handleBrandKitUpdate}
                 />
             </main>
         </div>
