@@ -3,6 +3,7 @@ import { generateMarketingCampaign } from './services/geminiService';
 import { CampaignResult, AdvancedSettings, SavedCampaign, CampaignTemplate } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { CampaignManager } from './components/CampaignManager';
+import { ExportManager } from './components/ExportManager';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
@@ -19,6 +20,9 @@ const App: React.FC = () => {
     // Campaign Management State
     const [currentCampaign, setCurrentCampaign] = useState<SavedCampaign | null>(null);
     const [showCampaignManager, setShowCampaignManager] = useState<boolean>(false);
+
+    // Export Manager State
+    const [showExportManager, setShowExportManager] = useState<boolean>(false);
 
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
@@ -513,6 +517,15 @@ const App: React.FC = () => {
                     defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
                     defaultImageStyle={advancedSettings.defaultImageStyle}
                     defaultCreativityLevel={advancedSettings.defaultCreativityLevel}
+                    onExportClick={() => setShowExportManager(true)}
+                />
+
+                {/* Export Manager */}
+                <ExportManager
+                    campaign={currentCampaign}
+                    results={results}
+                    isVisible={showExportManager}
+                    onClose={() => setShowExportManager(false)}
                 />
             </main>
         </div>

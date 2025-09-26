@@ -14,6 +14,7 @@ interface ResultsDisplayProps {
   defaultNegativePrompt: string;
   defaultImageStyle: string;
   defaultCreativityLevel: number;
+  onExportClick?: () => void;
 }
 
 interface ImageResultProps {
@@ -147,15 +148,16 @@ const ImageResult: React.FC<ImageResultProps> = ({
     );
 };
 
-export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
-    results, 
-    isLoading, 
-    error, 
-    companyName, 
-    defaultAspectRatio, 
+export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
+    results,
+    isLoading,
+    error,
+    companyName,
+    defaultAspectRatio,
     defaultNegativePrompt,
     defaultImageStyle,
     defaultCreativityLevel,
+    onExportClick,
 }) => {
   if (isLoading) {
     return (
@@ -213,6 +215,19 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   return (
     <div className="space-y-6 mt-8">
+      {/* Export Button */}
+      {onExportClick && (
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={onExportClick}
+            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+          >
+            <span>📤</span>
+            Export Campaign
+          </button>
+        </div>
+      )}
+
       <AnalysisCard title="Target Audience">
         <p>{results.targetAudience}</p>
       </AnalysisCard>
