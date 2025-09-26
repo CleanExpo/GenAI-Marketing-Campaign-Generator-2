@@ -4,6 +4,7 @@ import { CampaignResult, AdvancedSettings } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
+import { isSEMrushAvailable } from './services/semrushService';
 
 const App: React.FC = () => {
     const [productDescription, setProductDescription] = useState<string>('');
@@ -279,7 +280,14 @@ const App: React.FC = () => {
 
                                     {/* Competitor Analysis */}
                                     <div>
-                                        <h4 className={formLabelClass}>Competitor Websites</h4>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className={formLabelClass}>Competitor Websites</h4>
+                                            {isSEMrushAvailable() && (
+                                                <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded border border-green-500/30">
+                                                    ✓ SEMrush Enhanced
+                                                </span>
+                                            )}
+                                        </div>
                                          {advancedSettings.competitorWebsites.map((comp, index) => (
                                             <div key={index} className="flex items-center gap-2 mb-2">
                                                 <input type="url" placeholder="https://competitor.com" value={comp.url} onChange={e => handleCompetitorChange(index, e.target.value)} className={`${formInputClass} flex-1`} />

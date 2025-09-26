@@ -14,7 +14,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1bq2wUh5pIiWkE-QyXRFbZd
 - 📱 **Multi-Platform Content** - Tailored content for Facebook, Instagram, Twitter, LinkedIn, TikTok
 - 🖼️ **AI Image Generation** - Custom visuals using Imagen 4.0 with style customization
 - 📈 **SEO Optimization** - Keyword research and Google E-E-A-T compliance
-- 🔍 **Competitor Analysis** - Strategic insights from competitor websites
+- 🔍 **Competitor Analysis** - Strategic insights from competitor websites with optional SEMrush SEO data integration
 - 📊 **Trending Topics Integration** - Leverage current trends in your campaigns
 - 🎨 **Brand Consistency** - Upload logos and set brand colors for cohesive messaging
 
@@ -22,6 +22,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1bq2wUh5pIiWkE-QyXRFbZd
 
 - Node.js (v18 or higher)
 - Gemini API key from [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)
+- SEMrush API key from [SEMrush API](https://www.semrush.com/api/) (optional, for enhanced competitor analysis)
 
 ## Local Development
 
@@ -109,6 +110,9 @@ If your deployment is showing authentication issues:
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `VITE_GEMINI_API_KEY` | Google Gemini API key | ✅ |
+| `VITE_SEMRUSH_API_KEY` | SEMrush API key for enhanced competitor analysis | ⚠️ Optional* |
+
+*When SEMrush API key is provided, competitor analysis will include real SEO data including organic traffic, keyword rankings, and competitor insights.
 
 ## Troubleshooting
 

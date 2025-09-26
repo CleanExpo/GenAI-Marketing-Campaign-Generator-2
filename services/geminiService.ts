@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CampaignResult, AdvancedSettings } from '../types';
+import { analyzeCompetitor, isSEMrushAvailable } from './semrushService';
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY! });
 
@@ -96,6 +97,12 @@ export const generateMarketingCampaign = async (productDescription: string, gene
    if (settings.competitorWebsites.length > 0) {
     prompt += `\n--- Competitor Analysis ---\n`;
     prompt += `Analyze the following competitor websites:\n${settings.competitorWebsites.map(c => `- ${c.url}`).join('\n')}\n`;
+
+    // If SEMrush is available, we'll add real SEO data to the analysis
+    if (isSEMrushAvailable()) {
+      prompt += `For each competitor, I will provide real SEO data including organic traffic, keyword rankings, and competitor insights from SEMrush. Use this data to enhance your analysis.\n`;
+    }
+
     prompt += `For each competitor, provide a summary of their strengths, weaknesses, their overall marketing strategy, and 2-3 specific examples of their current marketing tactics (e.g., 'Runs a popular influencer campaign called #BrandChallenge', 'Uses retargeting ads on Facebook with a 10% discount').\n`;
   }
 
@@ -130,6 +137,33 @@ export const generateMarketingCampaign = async (productDescription: string, gene
     delete dynamicSchema.properties.competitorAnalysis;
   }
 
+  // Enhance competitor analysis with SEMrush data if available
+  let semrushData = '';
+  if (isSEMrushAvailable() && settings.competitorWebsites.length > 0) {
+    try {
+      const competitorInsights = await Promise.all(
+        settings.competitorWebsites.slice(0, 3).map(comp => analyzeCompetitor(comp.url))
+      );
+
+      semrushData = '\n--- SEMrush Competitor Data ---\n';
+      competitorInsights.forEach(insight => {
+        if (!insight.error) {
+          semrushData += `${insight.domain}:\n`;
+          semrushData += `- Organic Keywords: ${insight.seoMetrics.organicKeywords.toLocaleString()}\n`;
+          semrushData += `- Organic Traffic: ${insight.seoMetrics.organicTraffic.toLocaleString()}\n`;
+          semrushData += `- Top Keywords: ${insight.topKeywords.slice(0, 5).map(k => k.keyword).join(', ')}\n`;
+          if (insight.competitors.length > 0) {
+            semrushData += `- Main Competitors: ${insight.competitors.join(', ')}\n`;
+          }
+          semrushData += '\n';
+        }
+      });
+
+      prompt += semrushData;
+    } catch (error) {
+      console.warn('SEMrush data fetch failed:', error);
+    }
+  }
 
   try {
     const response = await ai.models.generateContent({

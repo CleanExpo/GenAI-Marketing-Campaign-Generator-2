@@ -4,7 +4,8 @@
   "installCommand": "npm install",
   "framework": "vite",
   "env": {
-    "VITE_GEMINI_API_KEY": "@vite_gemini_api_key"
+    "VITE_GEMINI_API_KEY": "@vite_gemini_api_key",
+    "VITE_SEMRUSH_API_KEY": "@vite_semrush_api_key"
   },
   "functions": {
     "app/api/**/*.js": {
