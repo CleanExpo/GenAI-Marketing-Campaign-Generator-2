@@ -9,13 +9,18 @@ interface CampaignManagerProps {
   onUseTemplate: (template: CampaignTemplate) => void;
   currentCampaign?: SavedCampaign;
   onSaveCurrent: (name: string, description: string, tags: string[]) => void;
+  // Add props to check if we have unsaved results
+  hasUnsavedResults?: boolean;
+  resultsExist?: boolean;
 }
 
 export const CampaignManager: React.FC<CampaignManagerProps> = ({
   onLoadCampaign,
   onUseTemplate,
   currentCampaign,
-  onSaveCurrent
+  onSaveCurrent,
+  hasUnsavedResults = false,
+  resultsExist = false
 }) => {
   const [campaigns, setCampaigns] = useState<SavedCampaign[]>([]);
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
@@ -99,10 +104,30 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
         <h2 className="text-xl font-semibold text-white">Campaign Manager</h2>
         <button
           onClick={() => setShowSaveDialog(true)}
-          className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          disabled={!currentCampaign}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            resultsExist && !currentCampaign
+              ? 'bg-cyan-600 hover:bg-cyan-700 text-white'
+              : currentCampaign && hasUnsavedResults
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+          }`}
+          disabled={!resultsExist}
+          title={
+            !resultsExist
+              ? 'Generate a campaign first to enable saving'
+              : currentCampaign && !hasUnsavedResults
+                ? 'Campaign already saved (no changes to save)'
+                : resultsExist && !currentCampaign
+                  ? 'Save this campaign to your library'
+                  : 'Update saved campaign with changes'
+          }
         >
-          💾 Save Current Campaign
+          💾 {currentCampaign && !hasUnsavedResults
+            ? 'Campaign Saved'
+            : currentCampaign && hasUnsavedResults
+              ? 'Save Changes'
+              : 'Save Current Campaign'
+          }
         </button>
       </div>
 

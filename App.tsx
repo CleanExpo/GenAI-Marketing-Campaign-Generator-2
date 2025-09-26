@@ -496,6 +496,10 @@ const App: React.FC = () => {
                             onUseTemplate={handleUseTemplate}
                             currentCampaign={currentCampaign}
                             onSaveCurrent={handleSaveCurrent}
+                            resultsExist={!!results}
+                            hasUnsavedResults={!!results && (!currentCampaign ||
+                                (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                            )}
                         />
                     </div>
                 )}
