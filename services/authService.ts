@@ -3,6 +3,8 @@
  * Handles user authentication, session management, and role-based permissions
  */
 
+import React from 'react';
+
 export interface User {
   id: string;
   email: string;
