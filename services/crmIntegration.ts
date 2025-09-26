@@ -486,9 +486,17 @@ export class AirtableProvider extends CRMProvider {
   async testConnection(): Promise<boolean> {
     try {
       const response = await this.makeRequest(`/meta/bases/${this.baseId}/tables`);
-      return response && response.tables;
-    } catch {
-      return false;
+
+      // Check if Airtable returned an error in the response body
+      if (response.error) {
+        throw new Error(`Airtable API Error: ${response.error.message || response.error.type || 'Unknown error'}`);
+      }
+
+      // Check if we have the expected tables array
+      return response && Array.isArray(response.tables) && response.tables.length >= 0;
+    } catch (error: any) {
+      // Re-throw with more specific error message for debugging
+      throw new Error(error.message || 'Connection test failed');
     }
   }
 
