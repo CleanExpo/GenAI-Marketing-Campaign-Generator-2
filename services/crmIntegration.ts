@@ -460,12 +460,16 @@ export class SalesforceProvider extends CRMProvider {
 export class AirtableProvider extends CRMProvider {
   private baseId: string;
   private apiKey: string;
-  private baseUrl = '/api/airtable'; // Use Vite proxy in development
+  private baseUrl: string;
 
   constructor(connection: CRMConnection) {
     super(connection);
-    this.apiKey = connection.configuration.credentials.apiKey || '';
-    this.baseId = connection.configuration.credentials.domain || ''; // Using domain field for base ID
+    // Use environment variables if available, otherwise fall back to connection credentials
+    this.apiKey = import.meta.env.VITE_AIRTABLE_TOKEN || connection.configuration.credentials.apiKey || '';
+    this.baseId = import.meta.env.VITE_AIRTABLE_BASE_ID || connection.configuration.credentials.domain || ''; // Using domain field for base ID
+
+    // Use Vercel serverless function in production, Vite proxy in development
+    this.baseUrl = import.meta.env.PROD ? '/api/airtable' : '/api/airtable';
   }
 
   async authenticate(): Promise<boolean> {
@@ -713,13 +717,21 @@ export class AirtableProvider extends CRMProvider {
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     try {
+      // In production (Vercel), the serverless function handles authentication
+      // In development, we include the Authorization header for the proxy
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+
+      // Only add Authorization header in development mode or when using manual credentials
+      if (!import.meta.env.PROD || !import.meta.env.VITE_AIRTABLE_TOKEN) {
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          ...options.headers
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -1182,6 +1194,75 @@ export class CRMIntegrationService {
   // Initialize service
   static initialize(): void {
     this.loadConnections();
+    this.initializeEnvironmentConnections();
+  }
+
+  // Auto-create Airtable connection if environment variables are available
+  private static initializeEnvironmentConnections(): void {
+    const airtableToken = import.meta.env.VITE_AIRTABLE_TOKEN;
+    const airtableBaseId = import.meta.env.VITE_AIRTABLE_BASE_ID;
+
+    if (airtableToken && airtableBaseId) {
+      // Check if we already have an environment-based Airtable connection
+      const existingEnvConnection = this.connections.find(
+        conn => conn.provider === 'airtable' && conn.name === 'Environment Airtable'
+      );
+
+      if (!existingEnvConnection) {
+        const envConnection: CRMConnection = {
+          id: 'env-airtable',
+          provider: 'airtable',
+          name: 'Environment Airtable',
+          configuration: {
+            provider: 'airtable',
+            credentials: {
+              apiKey: airtableToken,
+              domain: airtableBaseId
+            },
+            fieldMappings: [],
+            syncSettings: {
+              autoSync: false,
+              syncInterval: 60,
+              syncOnCreate: true,
+              syncOnUpdate: false,
+              conflictResolution: 'zenith_wins',
+              batchSize: 10,
+              retryAttempts: 3
+            }
+          },
+          isActive: true,
+          lastSync: null,
+          syncStatus: 'connected',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        this.connections.push(envConnection);
+        this.saveConnections();
+        console.log('Auto-created Airtable connection from environment variables');
+      } else {
+        // Update existing connection to be active
+        existingEnvConnection.isActive = true;
+        existingEnvConnection.syncStatus = 'connected';
+        this.saveConnections();
+      }
+    }
+  }
+
+  // Environment variable status
+  static getEnvironmentStatus(): {
+    hasAirtableConfig: boolean;
+    airtableConfigured: boolean;
+    environmentType: 'development' | 'production';
+  } {
+    const hasAirtableToken = !!(import.meta.env.VITE_AIRTABLE_TOKEN);
+    const hasAirtableBaseId = !!(import.meta.env.VITE_AIRTABLE_BASE_ID);
+
+    return {
+      hasAirtableConfig: hasAirtableToken && hasAirtableBaseId,
+      airtableConfigured: hasAirtableToken || hasAirtableBaseId,
+      environmentType: import.meta.env.PROD ? 'production' : 'development'
+    };
   }
 
   // Future: Webhook handling
