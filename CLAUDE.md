@@ -8,13 +8,14 @@ This is a React 19 + TypeScript + Vite application that generates comprehensive 
 
 ### Core Technologies
 - **Frontend**: React 19.1.1, TypeScript 5.8.2, Vite 6.2.0
-- **AI Integration**: Google Gemini AI (@google/genai 1.20.0)
+- **AI Integration**: Google Gemini AI (@google/genai 1.20.0) + SEMrush API (optional)
 - **Styling**: Tailwind CSS (CDN-loaded)
 - **Build**: Vite with hot reload and fast development
+- **Deployment**: Vercel with automatic deployments from main branch
 
 ### Key Architecture Patterns
 
-**Service Layer Pattern**: `services/geminiService.ts` handles all AI interactions with structured JSON schema validation. The service uses dual models - `gemini-2.5-flash` for text generation and `imagen-4.0-generate-001` for image generation.
+**Service Layer Pattern**: `services/geminiService.ts` handles all AI interactions with structured JSON schema validation. The service uses dual models - `gemini-2.5-flash` for text generation and `imagen-4.0-generate-001` for image generation. `services/semrushService.ts` provides SEO data integration for enhanced competitor analysis when API key is available.
 
 **Centralized State Management**: `App.tsx` (405 lines) serves as the main state container, managing form data, settings, and results through React hooks. No external state management library is used.
 
@@ -42,10 +43,15 @@ npm install
 
 ## Environment Setup
 
-**Required Environment Variable**: `VITE_GEMINI_API_KEY` - Get from Google AI Studio
-**Development**: Create `.env.local` file with your API key
-**Deployment**: Configure environment variable in your hosting platform
+**Required Environment Variables**:
+- `VITE_GEMINI_API_KEY` (Required): Google Gemini API key from Google AI Studio
+- `VITE_SEMRUSH_API_KEY` (Optional): SEMrush API key for enhanced competitor analysis
+
+**Development**: Create `.env.local` file with your API keys (see `.env.example`)
+**Deployment**: Configure environment variables in Vercel dashboard
 **AI Studio Integration**: Pre-configured for deployment at https://ai.studio/apps/drive/1bq2wUh5pIiWkE-QyXRFbZdlPJZgw6Ee2
+
+**IMPORTANT**: Never use `@variable_name` syntax in `vercel.json` - let Vercel auto-map dashboard variables.
 
 ## Data Flow Architecture
 
@@ -87,6 +93,13 @@ npm install
 - Schema-driven response validation
 - Dynamic prompt construction
 - Comprehensive error handling
+- SEMrush data integration for enhanced competitor insights
+
+**services/semrushService.ts** - SEO data integration with:
+- Domain analysis (organic keywords, traffic, costs)
+- Keyword research and ranking data
+- Competitor discovery and analysis
+- Graceful fallback when API key unavailable
 
 ## Advanced Features
 
@@ -98,7 +111,7 @@ npm install
 
 **Hemingway Writing Style**: Optional simplified writing approach for better readability.
 
-**Competitor Analysis**: Website analysis integration with strategic recommendations.
+**Competitor Analysis**: AI-powered website analysis with optional SEMrush integration for real SEO data (organic traffic, keyword rankings, competitor discovery). Visual indicator shows when SEMrush is active.
 
 ## Type Safety
 
@@ -165,3 +178,12 @@ Ensure Vercel dashboard has:
 - `VITE_SEMRUSH_API_KEY`: SEMrush API key (optional)
 
 **Note**: Never use `@variable_name` syntax in `vercel.json` - let Vercel auto-map dashboard variables.
+
+## SEMrush Integration
+
+The application includes optional SEMrush API integration for enhanced competitor analysis:
+
+**When Available**: Automatically fetches real SEO data (organic traffic, keywords, competitors) and integrates with AI analysis
+**When Unavailable**: Gracefully falls back to AI-only competitor analysis
+**UI Indicator**: Green "✓ SEMrush Enhanced" badge appears when API key is configured
+**Rate Limiting**: Built-in error handling and API limits respect
