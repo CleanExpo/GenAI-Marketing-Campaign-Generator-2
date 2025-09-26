@@ -12,11 +12,13 @@ import {
 interface CRMManagerProps {
   isVisible: boolean;
   onClose: () => void;
+  onConnectionChange?: () => void;
 }
 
 export const CRMManager: React.FC<CRMManagerProps> = ({
   isVisible,
-  onClose
+  onClose,
+  onConnectionChange
 }) => {
   const [connections, setConnections] = useState<CRMConnection[]>([]);
   const [activeTab, setActiveTab] = useState<'connections' | 'sync' | 'settings'>('connections');
@@ -69,6 +71,7 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
           retryAttempts: 3
         }
       });
+      onConnectionChange?.();
     } catch (error: any) {
       alert(`Failed to add connection: ${error.message}`);
     }
@@ -100,12 +103,14 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
     if (confirm('Are you sure you want to delete this CRM connection?')) {
       await CRMIntegrationService.deleteConnection(id);
       loadConnections();
+      onConnectionChange?.();
     }
   };
 
   const handleToggleConnection = async (id: string, isActive: boolean) => {
     await CRMIntegrationService.updateConnection(id, { isActive });
     loadConnections();
+    onConnectionChange?.();
   };
 
   const getProviderIcon = (provider: CRMProvider): string => {

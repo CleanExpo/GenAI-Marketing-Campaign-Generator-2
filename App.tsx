@@ -11,6 +11,7 @@ import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STY
 import { isSEMrushAvailable } from './services/semrushService';
 import { CampaignStorageService } from './services/campaignStorage';
 import { BrandKitService, BrandKit } from './services/brandKitService';
+import { CRMIntegrationService, CRMSyncResult, CRMConnection } from './services/crmIntegration';
 
 const App: React.FC = () => {
     const [productDescription, setProductDescription] = useState<string>('');
@@ -33,6 +34,18 @@ const App: React.FC = () => {
 
     // CRM Manager State
     const [showCRMManager, setShowCRMManager] = useState<boolean>(false);
+
+    // CRM Sync State
+    const [crmSyncing, setCrmSyncing] = useState<boolean>(false);
+    const [crmSyncStatus, setCrmSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+    const [crmSyncMessage, setCrmSyncMessage] = useState<string>('');
+    const [crmConnection, setCrmConnection] = useState<CRMConnection | null>(null);
+    const [crmNotifications, setCrmNotifications] = useState<Array<{
+        id: string;
+        type: 'success' | 'error' | 'warning';
+        message: string;
+        timestamp: Date;
+    }>>([]);
 
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
@@ -81,6 +94,78 @@ const App: React.FC = () => {
         };
     }, []); // Empty dependency array for mount/unmount only
 
+    // Initialize CRM connection status on component mount
+    useEffect(() => {
+        const activeConnection = CRMIntegrationService.getActiveConnection();
+        if (activeConnection) {
+            setCrmConnection(activeConnection);
+            setCrmSyncStatus('idle');
+            setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
+        }
+    }, []);
+
+    // CRM Helper Functions
+    const addCrmNotification = (type: 'success' | 'error' | 'warning', message: string) => {
+        const notification = {
+            id: `crm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type,
+            message,
+            timestamp: new Date()
+        };
+        setCrmNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep only 5 most recent
+
+        // Auto-dismiss success and warning notifications after 5 seconds
+        if (type !== 'error') {
+            setTimeout(() => {
+                setCrmNotifications(prev => prev.filter(n => n.id !== notification.id));
+            }, 5000);
+        }
+    };
+
+    const dismissCrmNotification = (id: string) => {
+        setCrmNotifications(prev => prev.filter(n => n.id !== id));
+    };
+
+    const performCrmSync = async (campaign: SavedCampaign): Promise<boolean> => {
+        if (!crmConnection) {
+            return false; // Silent failure if no CRM connection
+        }
+
+        try {
+            setCrmSyncing(true);
+            setCrmSyncStatus('syncing');
+            setCrmSyncMessage('Syncing with CRM...');
+
+            const result = await CRMIntegrationService.syncCampaign(campaign);
+
+            if (result.success) {
+                setCrmSyncStatus('success');
+                setCrmSyncMessage(`Successfully synced to ${crmConnection.provider}`);
+                addCrmNotification('success', `Campaign "${campaign.name}" synced successfully to ${crmConnection.provider}`);
+                return true;
+            } else {
+                setCrmSyncStatus('error');
+                const errorMsg = result.errors.length > 0 ? result.errors[0].error : 'Unknown sync error';
+                setCrmSyncMessage(`Sync failed: ${errorMsg}`);
+                addCrmNotification('error', `Failed to sync campaign to ${crmConnection.provider}: ${errorMsg}`);
+                return false;
+            }
+        } catch (error: any) {
+            setCrmSyncStatus('error');
+            setCrmSyncMessage(`Sync error: ${error.message}`);
+            addCrmNotification('error', `CRM sync error: ${error.message}`);
+            return false;
+        } finally {
+            setCrmSyncing(false);
+
+            // Reset status after 3 seconds
+            setTimeout(() => {
+                setCrmSyncStatus('idle');
+                setCrmSyncMessage(crmConnection ? `Connected to ${crmConnection.provider}` : '');
+            }, 3000);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!productDescription.trim()) {
             setError("Please enter a product description.");
@@ -92,6 +177,16 @@ const App: React.FC = () => {
         try {
             const campaignResults = await generateMarketingCampaign(productDescription, generateMedia, advancedSettings);
             setResults(campaignResults);
+
+            // Auto-sync with CRM if user has an active connection and current campaign exists
+            if (crmConnection && currentCampaign) {
+                const updatedCampaign = {
+                    ...currentCampaign,
+                    result: campaignResults,
+                    updatedAt: new Date()
+                };
+                await performCrmSync(updatedCampaign);
+            }
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred.');
         } finally {
@@ -143,6 +238,11 @@ const App: React.FC = () => {
 
             setCurrentCampaign(savedCampaign);
             setError(null);
+
+            // Automatically sync with CRM if connection exists
+            if (crmConnection) {
+                await performCrmSync(savedCampaign);
+            }
         } catch (err: any) {
             setError(`Failed to save campaign: ${err.message}`);
         }
@@ -268,17 +368,32 @@ const App: React.FC = () => {
                             </h1>
                         </div>
                         <div className="flex-1 flex justify-end gap-2">
-                            <button
-                                onClick={() => setShowCRMManager(!showCRMManager)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                    showCRMManager
-                                        ? 'bg-cyan-600 text-white'
-                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                }`}
-                                title="Connect and sync with CRM systems"
-                            >
-                                🔗 {showCRMManager ? 'Hide' : 'CRM'}
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowCRMManager(!showCRMManager)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        showCRMManager
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                    }`}
+                                    title={crmConnection ? `CRM: Connected to ${crmConnection.provider}` : "Connect and sync with CRM systems"}
+                                >
+                                    🔗 {showCRMManager ? 'Hide' : 'CRM'}
+                                    {crmConnection && (
+                                        <span className={`ml-1 w-2 h-2 rounded-full inline-block ${
+                                            crmSyncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
+                                            crmSyncStatus === 'success' ? 'bg-green-400' :
+                                            crmSyncStatus === 'error' ? 'bg-red-400' :
+                                            'bg-blue-400'
+                                        }`}></span>
+                                    )}
+                                </button>
+                                {crmSyncing && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3">
+                                        <div className="w-3 h-3 bg-cyan-400 rounded-full animate-ping"></div>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 onClick={() => setShowBrandKitManager(!showBrandKitManager)}
                                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -312,7 +427,60 @@ const App: React.FC = () => {
                             <span className="text-xs opacity-75">(v{currentCampaign.version})</span>
                         </div>
                     )}
+
+                    {/* CRM Status Bar */}
+                    {(crmConnection || crmSyncMessage) && (
+                        <div className={`mt-4 px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm border ${
+                            crmSyncStatus === 'syncing' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                            crmSyncStatus === 'success' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                            crmSyncStatus === 'error' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                            'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                        }`}>
+                            {crmSyncStatus === 'syncing' ? (
+                                <LoadingSpinner />
+                            ) : (
+                                <span>🔗</span>
+                            )}
+                            <span>{crmSyncMessage || `Connected to ${crmConnection?.provider}`}</span>
+                        </div>
+                    )}
                 </header>
+
+                {/* CRM Notifications */}
+                {crmNotifications.length > 0 && (
+                    <div className="space-y-2 mb-6">
+                        {crmNotifications.map((notification) => (
+                            <div
+                                key={notification.id}
+                                className={`px-4 py-3 rounded-lg flex items-start justify-between text-sm border ${
+                                    notification.type === 'success' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                                    notification.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                                    'bg-red-500/20 text-red-400 border-red-500/30'
+                                }`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <span className="mt-0.5">
+                                        {notification.type === 'success' ? '✅' :
+                                         notification.type === 'warning' ? '⚠️' : '❌'}
+                                    </span>
+                                    <div>
+                                        <p>{notification.message}</p>
+                                        <p className="text-xs opacity-75 mt-1">
+                                            {notification.timestamp.toLocaleTimeString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => dismissCrmNotification(notification.id)}
+                                    className="text-slate-400 hover:text-slate-200 ml-2 p-1"
+                                    title="Dismiss notification"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
                     <div className="space-y-6">
@@ -612,6 +780,19 @@ const App: React.FC = () => {
                 <CRMManager
                     isVisible={showCRMManager}
                     onClose={() => setShowCRMManager(false)}
+                    onConnectionChange={() => {
+                        // Refresh CRM connection status when connections are modified
+                        const activeConnection = CRMIntegrationService.getActiveConnection();
+                        setCrmConnection(activeConnection);
+                        if (activeConnection) {
+                            setCrmSyncStatus('idle');
+                            setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
+                            addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
+                        } else {
+                            setCrmSyncStatus('idle');
+                            setCrmSyncMessage('');
+                        }
+                    }}
                 />
             </main>
         </div>
