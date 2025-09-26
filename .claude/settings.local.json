@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npx @playwright/mcp@latest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
