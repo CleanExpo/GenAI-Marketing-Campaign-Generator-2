@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { generateMarketingCampaign } from './services/geminiService';
-import { CampaignResult, AdvancedSettings } from './types';
+import { CampaignResult, AdvancedSettings, SavedCampaign, CampaignTemplate } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
+import { CampaignManager } from './components/CampaignManager';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
+import { CampaignStorageService } from './services/campaignStorage';
 
 const App: React.FC = () => {
     const [productDescription, setProductDescription] = useState<string>('');
@@ -13,6 +15,10 @@ const App: React.FC = () => {
     const [results, setResults] = useState<CampaignResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+    // Campaign Management State
+    const [currentCampaign, setCurrentCampaign] = useState<SavedCampaign | null>(null);
+    const [showCampaignManager, setShowCampaignManager] = useState<boolean>(false);
 
     const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
         companyName: '',
@@ -56,6 +62,68 @@ const App: React.FC = () => {
     const handleInspirationClick = () => {
         const randomPrompt = INSPIRATION_PROMPTS[Math.floor(Math.random() * INSPIRATION_PROMPTS.length)];
         setProductDescription(randomPrompt);
+    };
+
+    // Campaign Management Functions
+    const handleLoadCampaign = (campaign: SavedCampaign) => {
+        setCurrentCampaign(campaign);
+        setProductDescription(campaign.productDescription);
+        setAdvancedSettings(campaign.settings);
+        setResults(campaign.result);
+        setError(null);
+        setShowCampaignManager(false);
+    };
+
+    const handleUseTemplate = (template: CampaignTemplate) => {
+        // Merge template settings with current settings
+        setAdvancedSettings(prev => ({ ...prev, ...template.settings }));
+        setError(null);
+        setShowCampaignManager(false);
+
+        // Track template usage
+        CampaignStorageService.useTemplate(template.id);
+    };
+
+    const handleSaveCurrent = async (name: string, description: string, tags: string[]) => {
+        if (!results || !productDescription.trim()) {
+            setError('No campaign to save. Please generate a campaign first.');
+            return;
+        }
+
+        try {
+            const savedCampaign = await CampaignStorageService.saveCampaign({
+                name,
+                description,
+                productDescription,
+                settings: advancedSettings,
+                result: results,
+                status: 'draft',
+                tags
+            });
+
+            setCurrentCampaign(savedCampaign);
+            setError(null);
+        } catch (err: any) {
+            setError(`Failed to save campaign: ${err.message}`);
+        }
+    };
+
+    const updateCurrentCampaign = async (updates: Partial<SavedCampaign>) => {
+        if (!currentCampaign) return;
+
+        try {
+            const updated = await CampaignStorageService.updateCampaign(currentCampaign.id, {
+                ...updates,
+                result: results || currentCampaign.result,
+                settings: advancedSettings
+            });
+
+            if (updated) {
+                setCurrentCampaign(updated);
+            }
+        } catch (err: any) {
+            setError(`Failed to update campaign: ${err.message}`);
+        }
     };
 
     const handleSettingChange = (field: keyof AdvancedSettings, value: any) => {
@@ -137,12 +205,36 @@ const App: React.FC = () => {
         <div className="bg-slate-900 text-white min-h-screen font-sans">
             <main className="max-w-4xl mx-auto p-4 md:p-8">
                 <header className="text-center mb-8">
-                    <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-                        AI Marketing Campaign Generator
-                    </h1>
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1"></div>
+                        <div className="flex-1">
+                            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                                AI Marketing Campaign Generator
+                            </h1>
+                        </div>
+                        <div className="flex-1 flex justify-end">
+                            <button
+                                onClick={() => setShowCampaignManager(!showCampaignManager)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    showCampaignManager
+                                        ? 'bg-cyan-600 text-white'
+                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                }`}
+                            >
+                                📁 {showCampaignManager ? 'Hide' : 'Campaigns'}
+                            </button>
+                        </div>
+                    </div>
                     <p className="text-slate-400 mt-2 text-lg">
                         Instantly craft comprehensive marketing strategies from a simple product idea.
                     </p>
+                    {currentCampaign && (
+                        <div className="mt-4 px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg inline-flex items-center gap-2 border border-cyan-500/30">
+                            <span>📂</span>
+                            <span>Loaded: {currentCampaign.name}</span>
+                            <span className="text-xs opacity-75">(v{currentCampaign.version})</span>
+                        </div>
+                    )}
                 </header>
 
                 <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
@@ -396,10 +488,22 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <ResultsDisplay 
-                    results={results} 
-                    isLoading={isLoading} 
-                    error={error} 
+                {/* Campaign Manager */}
+                {showCampaignManager && (
+                    <div className="mt-8">
+                        <CampaignManager
+                            onLoadCampaign={handleLoadCampaign}
+                            onUseTemplate={handleUseTemplate}
+                            currentCampaign={currentCampaign}
+                            onSaveCurrent={handleSaveCurrent}
+                        />
+                    </div>
+                )}
+
+                <ResultsDisplay
+                    results={results}
+                    isLoading={isLoading}
+                    error={error}
                     companyName={advancedSettings.companyName}
                     defaultAspectRatio={advancedSettings.defaultAspectRatio}
                     defaultNegativePrompt={advancedSettings.defaultNegativePrompt}
