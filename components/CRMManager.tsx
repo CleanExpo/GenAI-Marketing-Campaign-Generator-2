@@ -77,12 +77,21 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
   const handleTestConnection = async (connection: CRMConnection) => {
     try {
       setTestResults({ ...testResults, [connection.id]: false });
-      // Test would go through the service
-      // For now, simulate a test result
-      setTimeout(() => {
-        setTestResults({ ...testResults, [connection.id]: true });
-      }, 2000);
+
+      const result = await CRMIntegrationService.testExistingConnection(connection.id);
+
+      setTestResults({ ...testResults, [connection.id]: result.success });
+
+      if (!result.success) {
+        alert(`Connection test failed: ${result.error || 'Unknown error'}`);
+      } else {
+        alert('Connection test successful!');
+      }
+
+      // Reload connections to get updated status
+      loadConnections();
     } catch (error: any) {
+      setTestResults({ ...testResults, [connection.id]: false });
       alert(`Connection test failed: ${error.message}`);
     }
   };
@@ -267,14 +276,100 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
 
           {activeTab === 'sync' && (
             <div className="space-y-6">
-              <h3 className="text-white font-medium">Synchronization Status</h3>
-
-              {/* Future Implementation */}
-              <div className="text-center py-12">
-                <div className="text-4xl mb-4">🔄</div>
-                <h3 className="text-white text-lg font-medium mb-2">Sync Monitor Coming Soon</h3>
-                <p className="text-gray-400">Real-time sync status and conflict resolution will be available in the next update</p>
+              <div className="flex justify-between items-center">
+                <h3 className="text-white font-medium">Synchronization Status</h3>
+                <button
+                  onClick={loadConnections}
+                  className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1"
+                >
+                  🔄 Refresh Status
+                </button>
               </div>
+
+              {connections.length > 0 ? (
+                <div className="space-y-4">
+                  {connections.map(connection => (
+                    <div key={connection.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{getProviderIcon(connection.provider)}</span>
+                          <div>
+                            <h4 className="text-white font-medium">{connection.name}</h4>
+                            <p className="text-gray-400 text-sm capitalize">{connection.provider}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded border text-xs font-medium ${getStatusColor(connection.syncStatus)}`}>
+                          {connection.syncStatus}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Last Sync:</span>
+                          <p className="text-white">
+                            {connection.lastSync ? new Date(connection.lastSync).toLocaleString() : 'Never'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Auto Sync:</span>
+                          <p className="text-white">
+                            {connection.configuration.syncSettings.autoSync ? (
+                              <span className="text-green-400">✅ Enabled (every {connection.configuration.syncSettings.syncInterval}m)</span>
+                            ) : (
+                              <span className="text-gray-400">❌ Disabled</span>
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Sync On Create:</span>
+                          <p className="text-white">
+                            {connection.configuration.syncSettings.syncOnCreate ?
+                              <span className="text-green-400">✅ Yes</span> :
+                              <span className="text-gray-400">❌ No</span>
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Sync On Update:</span>
+                          <p className="text-white">
+                            {connection.configuration.syncSettings.syncOnUpdate ?
+                              <span className="text-green-400">✅ Yes</span> :
+                              <span className="text-gray-400">❌ No</span>
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {connection.errorMessage && (
+                        <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm">
+                          <strong>Error:</strong> {connection.errorMessage}
+                        </div>
+                      )}
+
+                      <div className="mt-3 text-xs text-gray-500">
+                        <span>Conflict Resolution: </span>
+                        <span className="capitalize">{connection.configuration.syncSettings.conflictResolution.replace('_', ' ')}</span>
+                        {" • "}
+                        <span>Batch Size: {connection.configuration.syncSettings.batchSize}</span>
+                        {" • "}
+                        <span>Retry Attempts: {connection.configuration.syncSettings.retryAttempts}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">🔄</div>
+                  <h3 className="text-white text-lg font-medium mb-2">No Active Connections</h3>
+                  <p className="text-gray-400">Add a CRM connection to see synchronization status</p>
+                  <button
+                    onClick={() => setActiveTab('connections')}
+                    className="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Add Connection
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -282,11 +377,152 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
             <div className="space-y-6">
               <h3 className="text-white font-medium">CRM Settings</h3>
 
-              {/* Future Implementation */}
-              <div className="text-center py-12">
-                <div className="text-4xl mb-4">⚙️</div>
-                <h3 className="text-white text-lg font-medium mb-2">Advanced Settings Coming Soon</h3>
-                <p className="text-gray-400">Field mapping, conflict resolution, and webhook configuration will be available in the next update</p>
+              {/* Global Sync Settings */}
+              <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                <h4 className="text-white font-medium mb-4">Global Synchronization Settings</h4>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-white font-medium">Auto-sync New Campaigns</h5>
+                      <p className="text-gray-400 text-sm">Automatically sync campaigns to active CRM when created</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-white font-medium">Bidirectional Sync</h5>
+                      <p className="text-gray-400 text-sm">Allow CRM changes to update ZENITH campaigns</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Default Connection Settings */}
+              <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                <h4 className="text-white font-medium mb-4">Default Connection Settings</h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Sync Interval (minutes)</label>
+                    <input
+                      type="number"
+                      defaultValue="60"
+                      min="5"
+                      max="1440"
+                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Batch Size</label>
+                    <input
+                      type="number"
+                      defaultValue="100"
+                      min="1"
+                      max="1000"
+                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Retry Attempts</label>
+                    <input
+                      type="number"
+                      defaultValue="3"
+                      min="0"
+                      max="10"
+                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Conflict Resolution</label>
+                    <select className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white">
+                      <option value="crm_wins">CRM Wins</option>
+                      <option value="zenith_wins">ZENITH Wins</option>
+                      <option value="newest_wins">Newest Wins</option>
+                      <option value="manual_review">Manual Review</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Management */}
+              <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                <h4 className="text-white font-medium mb-4">Data Management</h4>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                      📊 Export Sync Logs
+                    </button>
+                    <span className="text-gray-400 text-sm">Download sync history and error logs</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                      🧹 Clear Sync History
+                    </button>
+                    <span className="text-gray-400 text-sm">Remove all sync logs and reset connections</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                      🗑️ Reset All Connections
+                    </button>
+                    <span className="text-gray-400 text-sm">Remove all CRM connections and configurations</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Field Mapping Preview */}
+              <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                <h4 className="text-white font-medium mb-4">Field Mapping Reference</h4>
+
+                <div className="space-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-4 font-medium text-gray-300 border-b border-gray-600 pb-2">
+                    <span>ZENITH Field</span>
+                    <span>CRM Field (Airtable)</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Campaign Name</span>
+                    <span className="text-gray-400">Name</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Campaign Description</span>
+                    <span className="text-gray-400">Custom Field</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Product Description</span>
+                    <span className="text-gray-400">Custom Field</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Status</span>
+                    <span className="text-gray-400">Status (mapped)</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Created Date</span>
+                    <span className="text-gray-400">Start Date</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <span className="text-white">Campaign ID</span>
+                    <span className="text-gray-400">ZENITH Campaign ID</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded text-blue-400 text-sm">
+                  <strong>Note:</strong> Field mapping is automatically handled by each CRM provider. Custom fields are preserved and synced when possible.
+                </div>
               </div>
             </div>
           )}

@@ -26,7 +26,7 @@ This is a React 19 + TypeScript + Vite application that generates comprehensive 
 ## Development Commands
 
 ```bash
-# Start development server (port 3000)
+# Start development server (port 3000, or 3001+ if occupied)
 npm run dev
 
 # Build for production
@@ -39,7 +39,23 @@ npm run preview
 npm install
 ```
 
-**Note**: No test runner, linting, or formatting scripts are configured in package.json. The project uses Vite's built-in TypeScript checking and hot reload for development.
+**Windows Development Issues**: On Windows systems, you may encounter Rollup dependency errors. Fix with:
+```bash
+# If you see "@rollup/rollup-win32-x64-msvc" missing error:
+npm install @rollup/rollup-win32-x64-msvc
+
+# If persistent issues, clean install:
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Development Server**: Vite automatically finds the next available port if 3000 is occupied. The server includes:
+- Hot module replacement for React components
+- Airtable API proxy (`/api/airtable` → `https://api.airtable.com/v0`)
+- TypeScript compilation and error checking
+- Development CORS handling
+
+**Note**: No test runner, linting, or formatting scripts are configured. The project uses Vite's built-in TypeScript checking.
 
 ## Environment Setup
 
@@ -187,3 +203,102 @@ The application includes optional SEMrush API integration for enhanced competito
 **When Unavailable**: Gracefully falls back to AI-only competitor analysis
 **UI Indicator**: Green "✓ SEMrush Enhanced" badge appears when API key is configured
 **Rate Limiting**: Built-in error handling and API limits respect
+
+## Recent Updates - Airtable CRM Integration
+
+### Airtable CRM Integration Implementation (Latest)
+
+**Complete integration architecture** implemented for Airtable CRM with full CRUD operations:
+
+**Core Architecture**:
+- `services/crmIntegration.ts` - Extended with comprehensive AirtableProvider class
+- `components/CRMManager.tsx` - Updated with real connection testing
+- Vite proxy configuration for CORS handling
+
+**AirtableProvider Features**:
+- Full CRUD operations for Contacts, Companies, Deals, Campaigns
+- Field mapping between ZENITH and Airtable schemas
+- Batch operations support (10 records per batch per Airtable limits)
+- Comprehensive error handling with user-friendly messages
+- Rate limiting awareness (5 req/sec per base)
+
+**Connection Management**:
+- Real-time connection testing via `CRMIntegrationService.testExistingConnection()`
+- Automatic status updates (connected/error/disconnected)
+- Secure credential storage in localStorage
+- Visual connection status indicators in UI
+
+**CORS Solution**:
+- Vite development proxy: `/api/airtable` → `https://api.airtable.com/v0`
+- Eliminates browser CORS restrictions during development
+- Production-ready architecture for backend proxy implementation
+
+**Documentation Created**:
+- `docs/AirtableSetup.md` - Complete setup guide with table structures
+- `docs/.md/AirtableAPIReference.md` - Comprehensive API reference from Context7 MCP
+
+**Key Technical Fixes**:
+1. Fixed mock connection testing → Real CRM service integration
+2. Added proper error propagation and user feedback
+3. Implemented Vite proxy for seamless API calls
+4. Enhanced field mapping with custom field support
+5. Added comprehensive validation and troubleshooting
+
+**Table Structure Requirements**:
+- Contacts: Email, First Name, Last Name, Company, Phone, ZENITH Contact ID
+- Companies: Name, Domain, Industry, Size, ZENITH Company ID
+- Deals: Name, Amount, Stage, Close Date, Contact, Company, ZENITH Deal ID
+- Campaigns: Name, Type, Status, Start Date, End Date, Budget, ZENITH Campaign ID
+
+**Authentication**: Uses Airtable Personal Access Tokens with base:read and base:write scopes.
+
+**CRM Integration Service Methods**:
+- `CRMIntegrationService.addConnection(config)` - Add new CRM connection
+- `CRMIntegrationService.testExistingConnection(id)` - Test existing connection
+- `CRMIntegrationService.testConnectionCredentials(config)` - Test credentials before saving
+- `CRMIntegrationService.syncCampaign(campaign)` - Sync campaign to CRM
+- `CRMIntegrationService.getConnections()` - Get all connections
+- `CRMIntegrationService.deleteConnection(id)` - Remove connection
+
+## CRM Integration Architecture
+
+**Abstract Provider Pattern**: `services/crmIntegration.ts` implements a CRM provider abstraction layer enabling multiple CRM integrations through a unified interface.
+
+**Provider Hierarchy**:
+```typescript
+abstract class CRMProvider {
+  // Authentication & testing
+  abstract testConnection(): Promise<boolean>
+
+  // CRUD operations for each entity type
+  abstract createContact/Company/Deal/Campaign()
+  abstract updateContact/Company/Deal/Campaign()
+  abstract getContact/Company/Deal/Campaign()
+
+  // Batch operations and field mapping
+  abstract batchSync(): Promise<CRMSyncResult>
+  abstract getCustomFields(): Promise<Record<string, any>>
+}
+```
+
+**Implemented Providers**:
+- **AirtableProvider**: Full implementation with Airtable REST API integration
+- **SalesforceProvider**: OAuth-ready skeleton (requires OAuth setup)
+- **HubSpotProvider**: Placeholder for future implementation
+
+**Connection Management**: `CRMIntegrationService` acts as the main orchestrator:
+- localStorage-based connection persistence
+- Real-time status monitoring (connected/error/disconnected)
+- Provider factory pattern with runtime provider instantiation
+- Connection testing with automatic status updates
+
+**Field Mapping Strategy**: Each provider maps between ZENITH campaign data and CRM-specific field structures:
+- Contacts: Email, Name, Company → CRM contact fields
+- Campaigns: ZENITH campaign → CRM campaign with custom fields for metadata
+- Companies/Deals: Future expansion for full CRM workflow
+
+**Airtable Integration Specifics**:
+- Uses Personal Access Tokens (base:read, base:write scopes)
+- Batch operations limited to 10 records per request (Airtable limit)
+- Rate limiting: 5 requests per second per base
+- Proxy configuration handles CORS in development via Vite proxy

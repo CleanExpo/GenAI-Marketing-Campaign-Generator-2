@@ -460,7 +460,7 @@ export class SalesforceProvider extends CRMProvider {
 export class AirtableProvider extends CRMProvider {
   private baseId: string;
   private apiKey: string;
-  private baseUrl = 'https://api.airtable.com/v0';
+  private baseUrl = '/api/airtable'; // Use Vite proxy in development
 
   constructor(connection: CRMConnection) {
     super(connection);
@@ -704,21 +704,29 @@ export class AirtableProvider extends CRMProvider {
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorBody}`);
       }
-    });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorBody}`);
+      return response.json();
+    } catch (error: any) {
+      // Provide helpful error messages for common issues
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error(`Network Error: Unable to connect to Airtable API. Please check your internet connection and API credentials. ${error.message}`);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   private mapToAirtableContact(contact: Partial<CRMContact>): any {
@@ -929,6 +937,54 @@ export class CRMIntegrationService {
   private static providers: Map<string, CRMProvider> = new Map();
 
   // Connection Management
+  static async testConnectionCredentials(config: CRMConfiguration): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Create a temporary connection for testing
+      const tempConnection: CRMConnection = {
+        id: 'temp',
+        provider: config.provider,
+        name: `${config.provider} Test`,
+        configuration: config,
+        isActive: false,
+        lastSync: null,
+        syncStatus: 'disconnected',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const provider = this.createProvider(tempConnection);
+      const isConnected = await provider.testConnection();
+
+      return { success: isConnected };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async testExistingConnection(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const connection = this.connections.find(conn => conn.id === id);
+      if (!connection) {
+        return { success: false, error: 'Connection not found' };
+      }
+
+      const provider = this.createProvider(connection);
+      const isConnected = await provider.testConnection();
+
+      // Update connection status based on test result
+      if (isConnected) {
+        await this.updateConnectionSyncStatus(id, 'connected');
+      } else {
+        await this.updateConnectionSyncStatus(id, 'error', 'Connection test failed');
+      }
+
+      return { success: isConnected };
+    } catch (error: any) {
+      await this.updateConnectionSyncStatus(id, 'error', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   static async addConnection(config: CRMConfiguration): Promise<CRMConnection> {
     const connection: CRMConnection = {
       id: this.generateId(),
