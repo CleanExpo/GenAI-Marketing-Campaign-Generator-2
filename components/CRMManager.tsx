@@ -311,7 +311,7 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
                     <option value="pipedrive">Pipedrive (Coming Soon)</option>
                     <option value="zoho">Zoho CRM (Coming Soon)</option>
                     <option value="monday">Monday.com (Coming Soon)</option>
-                    <option value="airtable">Airtable (Coming Soon)</option>
+                    <option value="airtable">Airtable</option>
                   </select>
                 </div>
 
@@ -346,6 +346,46 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
                   </>
                 )}
 
+                {newConnection.provider === 'airtable' && (
+                  <>
+                    <div>
+                      <label className="block text-gray-300 text-sm font-medium mb-2">Base ID</label>
+                      <input
+                        type="text"
+                        placeholder="appXXXXXXXXXXXXXX"
+                        value={newConnection.credentials?.domain || ''}
+                        onChange={(e) => setNewConnection({
+                          ...newConnection,
+                          credentials: { ...newConnection.credentials, domain: e.target.value }
+                        })}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                      />
+                      <p className="text-gray-400 text-xs mt-1">
+                        Found in your Airtable base URL: airtable.com/YOUR_BASE_ID/...
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-gray-300 text-sm font-medium mb-2">API Key</label>
+                      <input
+                        type="password"
+                        placeholder="Your Airtable API key"
+                        value={newConnection.credentials?.apiKey || ''}
+                        onChange={(e) => setNewConnection({
+                          ...newConnection,
+                          credentials: { ...newConnection.credentials, apiKey: e.target.value }
+                        })}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                      />
+                      <p className="text-gray-400 text-xs mt-1">
+                        Create at airtable.com/create/tokens with base:read and base:write scopes
+                      </p>
+                    </div>
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-3 text-yellow-400 text-sm">
+                      <strong>Airtable Setup:</strong> Your base should have tables named "Contacts", "Companies", "Deals", and "Campaigns" with appropriate fields.
+                    </div>
+                  </>
+                )}
+
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded p-3 text-blue-400 text-sm">
                   <strong>Note:</strong> This is a demo interface. Full OAuth integration and secure credential management will be implemented in production.
                 </div>
@@ -360,7 +400,9 @@ export const CRMManager: React.FC<CRMManagerProps> = ({
                 </button>
                 <button
                   onClick={handleAddConnection}
-                  disabled={!newConnection.provider || !newConnection.credentials?.instanceUrl}
+                  disabled={!newConnection.provider ||
+                    (newConnection.provider === 'salesforce' && !newConnection.credentials?.instanceUrl) ||
+                    (newConnection.provider === 'airtable' && (!newConnection.credentials?.domain || !newConnection.credentials?.apiKey))}
                   className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg"
                 >
                   Add Connection

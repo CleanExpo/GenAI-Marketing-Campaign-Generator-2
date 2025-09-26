@@ -456,6 +456,397 @@ export class SalesforceProvider extends CRMProvider {
   }
 }
 
+// Airtable Implementation
+export class AirtableProvider extends CRMProvider {
+  private baseId: string;
+  private apiKey: string;
+  private baseUrl = 'https://api.airtable.com/v0';
+
+  constructor(connection: CRMConnection) {
+    super(connection);
+    this.apiKey = connection.configuration.credentials.apiKey || '';
+    this.baseId = connection.configuration.credentials.domain || ''; // Using domain field for base ID
+  }
+
+  async authenticate(): Promise<boolean> {
+    try {
+      // Test authentication by fetching base schema
+      const response = await this.makeRequest(`/meta/bases/${this.baseId}/tables`);
+      return response.tables && response.tables.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async refreshToken(): Promise<boolean> {
+    // Airtable uses API keys, no token refresh needed
+    return true;
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await this.makeRequest(`/meta/bases/${this.baseId}/tables`);
+      return response && response.tables;
+    } catch {
+      return false;
+    }
+  }
+
+  async createContact(contact: Partial<CRMContact>): Promise<CRMContact> {
+    const airtableRecord = this.mapToAirtableContact(contact);
+    const response = await this.makeRequest(`/${this.baseId}/Contacts`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableContact(response);
+  }
+
+  async updateContact(id: string, contact: Partial<CRMContact>): Promise<CRMContact> {
+    const airtableRecord = this.mapToAirtableContact(contact);
+    const response = await this.makeRequest(`/${this.baseId}/Contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableContact(response);
+  }
+
+  async getContact(id: string): Promise<CRMContact> {
+    const response = await this.makeRequest(`/${this.baseId}/Contacts/${id}`);
+    return this.mapFromAirtableContact(response);
+  }
+
+  async searchContacts(query: string): Promise<CRMContact[]> {
+    const filterFormula = `OR(FIND("${query}", {Email}), FIND("${query}", {First Name}), FIND("${query}", {Last Name}), FIND("${query}", {Company}))`;
+    const response = await this.makeRequest(`/${this.baseId}/Contacts?filterByFormula=${encodeURIComponent(filterFormula)}`);
+    return response.records.map((record: any) => this.mapFromAirtableContact(record));
+  }
+
+  async createDeal(deal: Partial<CRMDeal>): Promise<CRMDeal> {
+    const airtableRecord = this.mapToAirtableDeal(deal);
+    const response = await this.makeRequest(`/${this.baseId}/Deals`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableDeal(response);
+  }
+
+  async updateDeal(id: string, deal: Partial<CRMDeal>): Promise<CRMDeal> {
+    const airtableRecord = this.mapToAirtableDeal(deal);
+    const response = await this.makeRequest(`/${this.baseId}/Deals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableDeal(response);
+  }
+
+  async getDeal(id: string): Promise<CRMDeal> {
+    const response = await this.makeRequest(`/${this.baseId}/Deals/${id}`);
+    return this.mapFromAirtableDeal(response);
+  }
+
+  async createCompany(company: Partial<CRMCompany>): Promise<CRMCompany> {
+    const airtableRecord = this.mapToAirtableCompany(company);
+    const response = await this.makeRequest(`/${this.baseId}/Companies`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableCompany(response);
+  }
+
+  async updateCompany(id: string, company: Partial<CRMCompany>): Promise<CRMCompany> {
+    const airtableRecord = this.mapToAirtableCompany(company);
+    const response = await this.makeRequest(`/${this.baseId}/Companies/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableCompany(response);
+  }
+
+  async getCompany(id: string): Promise<CRMCompany> {
+    const response = await this.makeRequest(`/${this.baseId}/Companies/${id}`);
+    return this.mapFromAirtableCompany(response);
+  }
+
+  async createCampaign(campaign: Partial<CRMCampaign>): Promise<CRMCampaign> {
+    const airtableRecord = this.mapToAirtableCampaign(campaign);
+    const response = await this.makeRequest(`/${this.baseId}/Campaigns`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableCampaign(response);
+  }
+
+  async updateCampaign(id: string, campaign: Partial<CRMCampaign>): Promise<CRMCampaign> {
+    const airtableRecord = this.mapToAirtableCampaign(campaign);
+    const response = await this.makeRequest(`/${this.baseId}/Campaigns/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: airtableRecord,
+        typecast: true
+      })
+    });
+    return this.mapFromAirtableCampaign(response);
+  }
+
+  async getCampaign(id: string): Promise<CRMCampaign> {
+    const response = await this.makeRequest(`/${this.baseId}/Campaigns/${id}`);
+    return this.mapFromAirtableCampaign(response);
+  }
+
+  async getCustomFields(objectType: string): Promise<Record<string, any>> {
+    try {
+      const response = await this.makeRequest(`/meta/bases/${this.baseId}/tables`);
+      const table = response.tables.find((t: any) => t.name.toLowerCase() === objectType.toLowerCase());
+
+      if (!table) return {};
+
+      const customFields: Record<string, any> = {};
+      table.fields.forEach((field: any) => {
+        customFields[field.name] = {
+          label: field.name,
+          type: field.type,
+          required: false // Airtable doesn't expose required field info via API
+        };
+      });
+
+      return customFields;
+    } catch (error) {
+      console.error('Error fetching Airtable custom fields:', error);
+      return {};
+    }
+  }
+
+  async batchSync(records: any[], operation: 'create' | 'update'): Promise<CRMSyncResult> {
+    const startTime = Date.now();
+    const result: CRMSyncResult = {
+      success: true,
+      recordsProcessed: 0,
+      recordsCreated: 0,
+      recordsUpdated: 0,
+      recordsSkipped: 0,
+      errors: [],
+      warnings: [],
+      duration: 0
+    };
+
+    // Airtable supports batch operations with up to 10 records per request
+    const batchSize = Math.min(10, this.connection.configuration.syncSettings.batchSize);
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+
+      try {
+        if (operation === 'create') {
+          const airtableRecords = batch.map(record => ({
+            fields: this.mapToAirtableContact(record),
+            typecast: true
+          }));
+
+          const response = await this.makeRequest(`/${this.baseId}/Contacts`, {
+            method: 'POST',
+            body: JSON.stringify({ records: airtableRecords })
+          });
+
+          result.recordsCreated += response.records.length;
+        } else {
+          // Batch update
+          const airtableRecords = batch.map(record => ({
+            id: record.id,
+            fields: this.mapToAirtableContact(record),
+            typecast: true
+          }));
+
+          const response = await this.makeRequest(`/${this.baseId}/Contacts`, {
+            method: 'PATCH',
+            body: JSON.stringify({ records: airtableRecords })
+          });
+
+          result.recordsUpdated += response.records.length;
+        }
+
+        result.recordsProcessed += batch.length;
+
+      } catch (error: any) {
+        batch.forEach(record => {
+          result.errors.push({
+            recordId: record.id || 'unknown',
+            error: error.message,
+            retryable: true
+          });
+        });
+      }
+    }
+
+    result.duration = Date.now() - startTime;
+    result.success = result.errors.length === 0;
+    return result;
+  }
+
+  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+
+    return response.json();
+  }
+
+  private mapToAirtableContact(contact: Partial<CRMContact>): any {
+    return {
+      'Email': contact.email,
+      'First Name': contact.firstName,
+      'Last Name': contact.lastName,
+      'Company': contact.company,
+      'Phone': contact.phone,
+      'ZENITH Contact ID': contact.id,
+      // Add custom fields
+      ...Object.entries(contact.customFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {} as any)
+    };
+  }
+
+  private mapFromAirtableContact(airtableRecord: any): CRMContact {
+    const fields = airtableRecord.fields || {};
+    return {
+      id: airtableRecord.id,
+      email: fields['Email'] || '',
+      firstName: fields['First Name'],
+      lastName: fields['Last Name'],
+      company: fields['Company'],
+      phone: fields['Phone'],
+      customFields: this.extractAirtableCustomFields(fields, ['Email', 'First Name', 'Last Name', 'Company', 'Phone', 'ZENITH Contact ID'])
+    };
+  }
+
+  private mapToAirtableDeal(deal: Partial<CRMDeal>): any {
+    return {
+      'Name': deal.name,
+      'Amount': deal.amount,
+      'Stage': deal.stage,
+      'Close Date': deal.closeDate?.toISOString().split('T')[0],
+      'Contact': deal.contactId ? [deal.contactId] : undefined, // Assuming linked record
+      'Company': deal.companyId ? [deal.companyId] : undefined,
+      'ZENITH Deal ID': deal.id,
+      ...Object.entries(deal.customFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {} as any)
+    };
+  }
+
+  private mapFromAirtableDeal(airtableRecord: any): CRMDeal {
+    const fields = airtableRecord.fields || {};
+    return {
+      id: airtableRecord.id,
+      name: fields['Name'] || '',
+      amount: fields['Amount'],
+      stage: fields['Stage'] || 'New',
+      closeDate: fields['Close Date'] ? new Date(fields['Close Date']) : undefined,
+      contactId: Array.isArray(fields['Contact']) ? fields['Contact'][0] : fields['Contact'],
+      companyId: Array.isArray(fields['Company']) ? fields['Company'][0] : fields['Company'],
+      customFields: this.extractAirtableCustomFields(fields, ['Name', 'Amount', 'Stage', 'Close Date', 'Contact', 'Company', 'ZENITH Deal ID'])
+    };
+  }
+
+  private mapToAirtableCompany(company: Partial<CRMCompany>): any {
+    return {
+      'Name': company.name,
+      'Domain': company.domain,
+      'Industry': company.industry,
+      'Size': company.size,
+      'ZENITH Company ID': company.id,
+      ...Object.entries(company.customFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {} as any)
+    };
+  }
+
+  private mapFromAirtableCompany(airtableRecord: any): CRMCompany {
+    const fields = airtableRecord.fields || {};
+    return {
+      id: airtableRecord.id,
+      name: fields['Name'] || '',
+      domain: fields['Domain'],
+      industry: fields['Industry'],
+      size: fields['Size'],
+      customFields: this.extractAirtableCustomFields(fields, ['Name', 'Domain', 'Industry', 'Size', 'ZENITH Company ID'])
+    };
+  }
+
+  private mapToAirtableCampaign(campaign: Partial<CRMCampaign>): any {
+    return {
+      'Name': campaign.name,
+      'Type': campaign.type,
+      'Status': campaign.status,
+      'Start Date': campaign.startDate?.toISOString().split('T')[0],
+      'End Date': campaign.endDate?.toISOString().split('T')[0],
+      'Budget': campaign.budget,
+      'ZENITH Campaign ID': campaign.id,
+      ...Object.entries(campaign.customFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {} as any)
+    };
+  }
+
+  private mapFromAirtableCampaign(airtableRecord: any): CRMCampaign {
+    const fields = airtableRecord.fields || {};
+    return {
+      id: airtableRecord.id,
+      name: fields['Name'] || '',
+      type: fields['Type'] || 'Marketing Campaign',
+      status: fields['Status'] || 'Planning',
+      startDate: fields['Start Date'] ? new Date(fields['Start Date']) : undefined,
+      endDate: fields['End Date'] ? new Date(fields['End Date']) : undefined,
+      budget: fields['Budget'],
+      customFields: this.extractAirtableCustomFields(fields, ['Name', 'Type', 'Status', 'Start Date', 'End Date', 'Budget', 'ZENITH Campaign ID'])
+    };
+  }
+
+  private extractAirtableCustomFields(fields: any, standardFields: string[]): Record<string, any> {
+    const customFields: Record<string, any> = {};
+    Object.keys(fields).forEach(key => {
+      if (!standardFields.includes(key) && fields[key] !== null && fields[key] !== undefined) {
+        customFields[key] = fields[key];
+      }
+    });
+    return customFields;
+  }
+}
+
 // HubSpot Implementation (Placeholder)
 export class HubSpotProvider extends CRMProvider {
   async authenticate(): Promise<boolean> {
@@ -678,6 +1069,8 @@ export class CRMIntegrationService {
         return new SalesforceProvider(connection);
       case 'hubspot':
         return new HubSpotProvider(connection);
+      case 'airtable':
+        return new AirtableProvider(connection);
       default:
         throw new Error(`Unsupported CRM provider: ${connection.provider}`);
     }
