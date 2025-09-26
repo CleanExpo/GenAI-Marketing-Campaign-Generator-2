@@ -130,3 +130,27 @@ If your deployment is showing authentication issues:
 - Verify Vercel project is not set to private/protected
 - Confirm environment variables are set in Vercel dashboard
 - Check deployment logs for specific error messages
+
+## Deployment Verification
+
+**Always verify deployments using Playwright after pushing to Vercel:**
+
+1. **Test the deployment URL**:
+   ```bash
+   # Use Playwright MCP to test current deployment
+   # Check Vercel dashboard for latest deployment URL
+   playwright_navigate("https://your-deployment-url.vercel.app")
+   playwright_console_messages()
+   playwright_screenshot("deployment-test.png")
+   ```
+
+2. **Expected Success Indicators**:
+   - ✅ Application loads without white screen
+   - ✅ No "API Key must be set" errors in console
+   - ✅ SEMrush integration indicator appears (if both API keys configured)
+   - ✅ No 404 errors for favicon/resources
+
+3. **Common Deployment Issues**:
+   - **White screen**: Environment variables not configured in Vercel dashboard
+   - **API key errors**: Check `VITE_GEMINI_API_KEY` is set correctly
+   - **Authentication redirect**: Deployment visibility set to private instead of public

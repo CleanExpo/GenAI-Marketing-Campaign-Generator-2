@@ -119,3 +119,49 @@ When modifying AI features:
 3. Ensure response validation matches TypeScript interfaces
 4. Handle API errors gracefully with user feedback
 5. Test with various setting combinations to ensure schema consistency
+
+## Deployment Verification Protocol
+
+**MANDATORY**: After every Vercel deployment, use Playwright MCP to verify the application is working correctly.
+
+### Required Testing Steps
+
+1. **Navigate to deployment URL**:
+   ```javascript
+   // Use current deployment URL - check Vercel dashboard for latest
+   await page.goto('https://gen-ai-marketing-campaign-generator-[hash].vercel.app');
+   ```
+
+2. **Check console for errors**:
+   ```javascript
+   await browser_console_messages();
+   ```
+
+3. **Take deployment screenshot**:
+   ```javascript
+   await browser_take_screenshot({filename: "deployment-verification.png"});
+   ```
+
+4. **Verify environment variables loading**:
+   - Check for "An API Key must be set" errors
+   - Confirm no 404 errors for resources
+   - Verify application renders (not white screen)
+
+### Common Issues and Solutions
+
+**White Screen + API Key Error**:
+- Environment variables not configured in Vercel dashboard
+- Incorrect variable names (must be `VITE_GEMINI_API_KEY` and `VITE_SEMRUSH_API_KEY`)
+- Deployment authentication settings preventing public access
+
+**Missing Resources (404s)**:
+- Check `public/` directory contains all referenced files
+- Verify favicon and assets are properly deployed
+
+### Environment Variable Configuration
+
+Ensure Vercel dashboard has:
+- `VITE_GEMINI_API_KEY`: Google Gemini API key
+- `VITE_SEMRUSH_API_KEY`: SEMrush API key (optional)
+
+**Note**: Never use `@variable_name` syntax in `vercel.json` - let Vercel auto-map dashboard variables.
