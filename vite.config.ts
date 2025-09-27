@@ -10,15 +10,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     target: 'es2020',
-    minify: 'esbuild',
-    rollupOptions: {
-      external: ['@vercel/node'],
-      output: {
-        entryFileNames: 'js/[name]-[hash].js',
-        chunkFileNames: 'js/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
-    }
+    minify: 'esbuild'
   },
   server: {
     port: 3000,
