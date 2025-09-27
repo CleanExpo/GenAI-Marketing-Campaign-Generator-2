@@ -3,3 +3,7 @@ node_modules
 .cache
 .playwright-mcp
 dist
+package-lock.json
+*.log
+.env.local
+.env
