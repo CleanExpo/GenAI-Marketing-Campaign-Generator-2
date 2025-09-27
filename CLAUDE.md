@@ -41,15 +41,16 @@ npm run preview
 npm install
 ```
 
-**Windows Development Issues**: On Windows systems, you may encounter Rollup dependency errors. The `@rollup/rollup-win32-x64-msvc` dependency is already included but may need reinstallation:
+**Windows Development Issues**: On Windows systems, you may encounter Rollup dependency errors. These are typically resolved by a clean install:
 ```bash
 # If you see "@rollup/rollup-win32-x64-msvc" missing error:
-npm install @rollup/rollup-win32-x64-msvc --save-dev
-
-# If persistent issues, clean install:
+# DO NOT install the Windows-specific package as it breaks Vercel deployments
+# Instead, do a clean install:
 rm -rf node_modules package-lock.json
 npm install
 ```
+
+**Important**: The `@rollup/rollup-win32-x64-msvc` package is intentionally excluded as it causes Vercel deployment failures on Linux build environments.
 
 **Development Server**: Vite automatically finds the next available port if 3000 is occupied. The server includes:
 - Hot module replacement for React components
