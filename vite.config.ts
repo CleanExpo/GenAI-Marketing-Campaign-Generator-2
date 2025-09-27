@@ -25,18 +25,7 @@ export default defineConfig(() => {
         assetsDir: 'assets',
         sourcemap: false,
         target: 'es2020',
-        minify: 'terser',
-        terserOptions: {
-          compress: {
-            drop_console: true,
-            drop_debugger: true,
-            pure_funcs: ['console.log', 'console.debug'],
-            passes: 2
-          },
-          mangle: {
-            safari10: true
-          }
-        },
+        minify: 'esbuild',
         chunkSizeWarningLimit: 600, // Reduced from 1000 to 600KB
         rollupOptions: {
           external: ['@vercel/node'],
