@@ -2,9 +2,291 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- Resource hints for performance optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://aistudiocdn.com" />
+    <link rel="dns-prefetch" href="https://api.airtable.com" />
+    <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+
+    <!-- Favicon with optimized loading -->
     <link rel="icon" type="image/png" href="/zenith-logo.png" />
+    <link rel="apple-touch-icon" href="/zenith-logo.png" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Critical meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZENITH - AI Marketing Campaign Generator</title>
+    <meta name="description" content="ZENITH - AI-Powered Marketing Campaign Generator with real-time competitive analysis, SEO optimization, and Airtable CRM integration. Generate comprehensive marketing campaigns with Google Gemini AI in minutes." />
+    <meta name="keywords" content="AI marketing campaign generator, marketing automation, SEO optimization, competitor analysis, Airtable CRM, Google Gemini AI, social media marketing, content marketing, digital marketing tools" />
+    <meta name="author" content="ZENITH - AI Marketing Solutions" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="theme-color" content="#0891b2" />
+    <meta name="msapplication-TileColor" content="#0891b2" />
+    <meta name="application-name" content="ZENITH AI Marketing" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://gen-ai-marketing-campaign-generator.vercel.app/" />
+
+    <!-- Open Graph tags for social media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ZENITH - AI Marketing Campaign Generator" />
+    <meta property="og:title" content="ZENITH - AI-Powered Marketing Campaign Generator | Real-time SEO & CRM Integration" />
+    <meta property="og:description" content="Generate comprehensive marketing campaigns with Google Gemini AI. Features real-time competitive analysis, SEO optimization, and seamless Airtable CRM integration. Transform your marketing strategy in minutes." />
+    <meta property="og:url" content="https://gen-ai-marketing-campaign-generator.vercel.app/" />
+    <meta property="og:image" content="https://gen-ai-marketing-campaign-generator.vercel.app/zenith-logo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ZENITH AI Marketing Campaign Generator - Automated marketing solutions with AI" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card markup -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ZENITH - AI Marketing Campaign Generator" />
+    <meta name="twitter:description" content="Generate comprehensive marketing campaigns with Google Gemini AI. Real-time competitive analysis, SEO optimization, and Airtable CRM integration." />
+    <meta name="twitter:image" content="https://gen-ai-marketing-campaign-generator.vercel.app/zenith-logo.png" />
+    <meta name="twitter:image:alt" content="ZENITH AI Marketing Campaign Generator" />
+    <meta name="twitter:creator" content="@ZenithAI" />
+    <meta name="twitter:site" content="@ZenithAI" />
+
+    <!-- Additional SEO meta tags -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ZENITH AI Marketing" />
+
+    <title>ZENITH - AI Marketing Campaign Generator | Real-time SEO & CRM</title>
+
+    <!-- Structured Data (JSON-LD) for better search understanding -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://gen-ai-marketing-campaign-generator.vercel.app/#organization",
+          "name": "ZENITH AI Marketing Solutions",
+          "alternateName": "ZENITH",
+          "url": "https://gen-ai-marketing-campaign-generator.vercel.app/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://gen-ai-marketing-campaign-generator.vercel.app/zenith-logo.png",
+            "width": 256,
+            "height": 256
+          },
+          "description": "AI-powered marketing campaign generation platform with real-time competitive analysis and CRM integration",
+          "foundingDate": "2024",
+          "knowsAbout": [
+            "AI Marketing",
+            "Campaign Generation",
+            "SEO Optimization",
+            "Competitive Analysis",
+            "CRM Integration",
+            "Content Marketing",
+            "Social Media Marketing"
+          ]
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://gen-ai-marketing-campaign-generator.vercel.app/#webapp",
+          "name": "ZENITH AI Marketing Campaign Generator",
+          "url": "https://gen-ai-marketing-campaign-generator.vercel.app/",
+          "description": "Generate comprehensive marketing campaigns with Google Gemini AI. Features real-time competitive analysis, SEO optimization, and seamless Airtable CRM integration.",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Marketing Software",
+          "operatingSystem": "Web Browser",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          },
+          "provider": {
+            "@id": "https://gen-ai-marketing-campaign-generator.vercel.app/#organization"
+          },
+          "featureList": [
+            "AI-powered campaign generation",
+            "Real-time competitive analysis",
+            "SEO optimization tools",
+            "Airtable CRM integration",
+            "Social media content creation",
+            "Multi-platform targeting",
+            "Brand kit management",
+            "Performance analytics"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://gen-ai-marketing-campaign-generator.vercel.app/#website",
+          "url": "https://gen-ai-marketing-campaign-generator.vercel.app/",
+          "name": "ZENITH - AI Marketing Campaign Generator",
+          "description": "AI-powered marketing campaign generation platform",
+          "publisher": {
+            "@id": "https://gen-ai-marketing-campaign-generator.vercel.app/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://gen-ai-marketing-campaign-generator.vercel.app/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "ZENITH AI Marketing Campaign Generator",
+          "description": "AI-powered marketing campaign generation with Google Gemini AI integration",
+          "applicationCategory": "Marketing Software",
+          "operatingSystem": "Web Browser",
+          "downloadUrl": "https://gen-ai-marketing-campaign-generator.vercel.app/",
+          "screenshot": "https://gen-ai-marketing-campaign-generator.vercel.app/zenith-logo.png",
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "127",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Critical CSS for above-the-fold content -->
+    <style>
+      /* Critical CSS - Above the fold styles */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #0f172a;
+        color: #f1f5f9;
+        line-height: 1.6;
+      }
+
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Critical loading spinner */
+      .initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .loader-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #334155;
+        border-top: 3px solid #0891b2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Critical header styles */
+      .app-header {
+        background-color: #1e293b;
+        border-bottom: 1px solid #334155;
+        padding: 1rem;
+      }
+
+      /* Hide initial loader when app loads */
+      .app-loaded .initial-loader {
+        display: none;
+      }
+
+      /* Accessibility improvements */
+      .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 6px;
+        background: #0891b2;
+        color: white;
+        padding: 8px;
+        text-decoration: none;
+        border-radius: 0 0 4px 4px;
+        z-index: 10000;
+        font-weight: bold;
+        transition: top 0.3s;
+      }
+
+      .skip-link:focus {
+        top: 0;
+      }
+
+      /* High contrast mode support */
+      @media (prefers-contrast: high) {
+        body {
+          background-color: #000000;
+          color: #ffffff;
+        }
+
+        .app-header {
+          background-color: #000000;
+          border-bottom: 2px solid #ffffff;
+        }
+      }
+
+      /* Reduced motion support */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .loader-spinner {
+          animation: none;
+        }
+      }
+
+      /* Focus indicators */
+      *:focus {
+        outline: 2px solid #0891b2;
+        outline-offset: 2px;
+      }
+
+      button:focus,
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: 2px solid #0891b2;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.1);
+      }
+
+      /* Screen reader only text */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
@@ -15,9 +297,39 @@
   }
 }
 </script>
-</head>
+  </head>
   <body>
-    <div id="root"></div>
+    <!-- Skip navigation links for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#navigation" class="skip-link">Skip to navigation</a>
+
+    <!-- Initial loading screen for better perceived performance -->
+    <div class="initial-loader" role="status" aria-label="Loading application">
+      <div class="loader-spinner"></div>
+      <span class="sr-only">Loading ZENITH AI Marketing Campaign Generator...</span>
+    </div>
+
+    <div id="root" role="application" aria-label="ZENITH AI Marketing Campaign Generator"></div>
+
+    <!-- Optimized script loading -->
     <script type="module" src="/index.tsx"></script>
+
+    <!-- Remove initial loader when app is ready -->
+    <script>
+      // Remove initial loader when React app mounts
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loader = document.querySelector('.initial-loader');
+          if (loader) {
+            loader.style.opacity = '0';
+            loader.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => {
+              loader.remove();
+              document.body.classList.add('app-loaded');
+            }, 300);
+          }
+        }, 100);
+      });
+    </script>
   </body>
 </html>

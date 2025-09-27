@@ -61,36 +61,8 @@ export interface CampaignExport {
   exportedBy: string;
 }
 
-export interface CampaignResult {
-  targetAudience: string;
-  keyMessaging: string[];
-  socialMediaContent: {
-    platform: string;
-    contentExample: string;
-  }[];
-  seoKeywords: string[];
-  adCopy: {
-    headline: string;
-    body: string;
-  }[];
-  aiImagePrompts?: string[];
-  aiVideoConcepts?: string[];
-  backlinkStrategy?: string[];
-  trendingTopics?: {
-    topic: string;
-    angle: string;
-  }[];
-  metaData?: {
-    title: string;
-    description: string;
-  };
-  competitorAnalysis?: {
-    competitor: string;
-    strengths: string[];
-    weaknesses: string[];
-    strategy: string;
-    strategyExamples?: string[];
-  }[];
+export interface CampaignResult extends CampaignData {
+  // CampaignResult is now an alias for CampaignData for backward compatibility
 }
 
 export interface AdvancedSettings {
@@ -115,4 +87,184 @@ export interface AdvancedSettings {
   defaultNegativePrompt: string;
   defaultImageStyle: string;
   defaultCreativityLevel: number;
+}
+
+// Brand Kit and Campaign Data Types
+export interface BrandKitData {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent?: string;
+  };
+  fonts: {
+    primary: string;
+    secondary?: string;
+  };
+  guidelines: string;
+  assets: BrandAsset[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BrandAsset {
+  id: string;
+  name: string;
+  type: 'logo' | 'image' | 'document' | 'video';
+  url: string;
+  size?: number;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+}
+
+// Enhanced Campaign Data Types
+export interface CampaignData {
+  targetAudience: string;
+  keyMessaging: string[];
+  socialMediaContent: SocialMediaContent[];
+  seoKeywords: string[];
+  adCopy: AdCopy[];
+  aiImagePrompts?: string[];
+  aiVideoConcepts?: string[];
+  backlinkStrategy?: string[];
+  trendingTopics?: TrendingTopic[];
+  metaData?: MetaData;
+  competitorAnalysis?: CompetitorAnalysis[];
+}
+
+export interface SocialMediaContent {
+  platform: string;
+  contentExample: string;
+  hashtags?: string[];
+  mediaType?: 'text' | 'image' | 'video' | 'carousel';
+}
+
+export interface AdCopy {
+  headline: string;
+  body: string;
+  cta?: string;
+  platform?: string;
+}
+
+export interface TrendingTopic {
+  topic: string;
+  angle: string;
+  relevanceScore?: number;
+}
+
+export interface MetaData {
+  title: string;
+  description: string;
+  keywords?: string[];
+}
+
+export interface CompetitorAnalysis {
+  competitor: string;
+  strengths: string[];
+  weaknesses: string[];
+  strategy: string;
+  strategyExamples?: string[];
+  marketShare?: number;
+}
+
+// Error and API Response Types
+export interface APIError {
+  message: string;
+  code?: string | number;
+  details?: Record<string, unknown>;
+  timestamp: Date;
+}
+
+export interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: APIError;
+  metadata?: {
+    requestId?: string;
+    timestamp: Date;
+    version?: string;
+  };
+}
+
+// Generic utility types
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+// Transformation function types
+export type TransformFunction<T = unknown, R = unknown> = (value: T) => R;
+
+// Async operation types
+export interface AsyncOperation<T = unknown> {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: T;
+  error?: APIError;
+  startedAt: Date;
+  completedAt?: Date;
+}
+
+// CRM Integration Types
+export interface CRMRecord {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  customFields: Record<string, unknown>;
+}
+
+export interface SalesforceRecord {
+  Id: string;
+  CreatedDate: string;
+  LastModifiedDate: string;
+  attributes?: {
+    type: string;
+    url: string;
+  };
+  [key: string]: unknown;
+}
+
+export interface AirtableRecord {
+  id: string;
+  fields: Record<string, unknown>;
+  createdTime: string;
+}
+
+export interface AirtableResponse<T = AirtableRecord> {
+  records: T[];
+  offset?: string;
+}
+
+export interface AirtableTable {
+  id: string;
+  name: string;
+  primaryFieldId: string;
+  fields: AirtableField[];
+}
+
+export interface AirtableField {
+  id: string;
+  name: string;
+  type: string;
+  options?: Record<string, unknown>;
+}
+
+// Webhook and batch operation types
+export interface WebhookPayload {
+  event: string;
+  data: Record<string, unknown>;
+  timestamp: Date;
+  source: string;
+}
+
+export interface BatchOperation<T = unknown> {
+  records: T[];
+  operation: 'create' | 'update' | 'delete';
+  batchSize?: number;
+  retryAttempts?: number;
 }

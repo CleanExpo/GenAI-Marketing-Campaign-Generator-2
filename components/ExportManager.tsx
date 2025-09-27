@@ -1,6 +1,6 @@
 // components/ExportManager.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { SavedCampaign, CampaignResult } from '../types';
 import { ExportService, ExportOptions } from '../services/exportService';
 
@@ -18,6 +18,7 @@ export const ExportManager: React.FC<ExportManagerProps> = ({
   onClose
 }) => {
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoadingPDF, setIsLoadingPDF] = useState(false);
   const [exportStatus, setExportStatus] = useState<{ [key: string]: boolean }>({});
   const [customFileName, setCustomFileName] = useState('');
   const [selectedFormats, setSelectedFormats] = useState<ExportOptions['format'][]>(['pdf']);
@@ -32,11 +33,16 @@ export const ExportManager: React.FC<ExportManagerProps> = ({
     );
   };
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     if (!exportData || selectedFormats.length === 0) return;
 
     setIsExporting(true);
     setExportStatus({});
+
+    // Show PDF loading state if PDF is selected
+    if (selectedFormats.includes('pdf')) {
+      setIsLoadingPDF(true);
+    }
 
     try {
       const results = await ExportService.exportMultipleFormats(
@@ -54,10 +60,12 @@ export const ExportManager: React.FC<ExportManagerProps> = ({
 
     } catch (error) {
       console.error('Export failed:', error);
+      setExportStatus({ error: true });
     } finally {
       setIsExporting(false);
+      setIsLoadingPDF(false);
     }
-  };
+  }, [exportData, selectedFormats, customFileName]);
 
   const handleQuickCopy = async () => {
     if (!exportData) return;

@@ -3,7 +3,16 @@ import { generateMarketingCampaign } from './services/geminiService';
 import { CampaignResult, AdvancedSettings, SavedCampaign, CampaignTemplate } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
-import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
+import ProductDescriptionForm from './components/ProductDescriptionForm';
+import AdvancedSettingsForm from './components/AdvancedSettingsForm';
+import ErrorBoundary from './components/ErrorBoundary';
+// Import only what we need for better tree shaking
+import {
+    INSPIRATION_PROMPTS,
+    NATIONAL_LANGUAGES,
+    TARGET_PLATFORMS,
+    ARTISTIC_STYLES
+} from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
 import { CampaignStorageService } from './services/campaignStorage';
 import { BrandKitService, BrandKit } from './services/brandKitService';
@@ -17,27 +26,157 @@ import { SecurityService } from './services/securityService';
 import { useAuth, authService } from './services/authService';
 import { airtableService, initializeAirtable } from './services/airtableService';
 
-// Lazy load heavy components for better performance
-const CampaignManager = lazy(() => import('./components/CampaignManager').then(module => ({ default: module.CampaignManager })));
-const ExportManager = lazy(() => import('./components/ExportManager').then(module => ({ default: module.ExportManager })));
-const BrandKitManager = lazy(() => import('./components/BrandKitManager').then(module => ({ default: module.BrandKitManager })));
-const CRMManager = lazy(() => import('./components/CRMManager').then(module => ({ default: module.CRMManager })));
-const StaffManager = lazy(() => import('./components/StaffManager'));
-const ProjectManager = lazy(() => import('./components/ProjectManager'));
+// Performance optimization hooks
+import { useComponentPreloader, useIntelligentPreloader } from './hooks/useComponentPreloader';
 
-// Loading component for Suspense fallbacks
-const ComponentLoader: React.FC<{ message?: string }> = ({ message = "Loading component..." }) => (
-    <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-3"></div>
-            <p className="text-slate-400 text-sm">{message}</p>
-        </div>
-    </div>
+// SEO and Accessibility imports
+import { seoService } from './services/seoService';
+import useAccessibility, { AriaLiveRegion } from './hooks/useAccessibility';
+import { performanceService } from './services/performanceService';
+
+// Optimized lazy loading with error boundaries and preloading
+const CampaignManager = lazy(() =>
+  import('./components/CampaignManager')
+    .then(module => ({ default: module.CampaignManager }))
+    .catch(error => {
+      console.error('Failed to load CampaignManager:', error);
+      throw error;
+    })
 );
+
+const ExportManager = lazy(() =>
+  import('./components/ExportManager')
+    .then(module => ({ default: module.ExportManager }))
+    .catch(error => {
+      console.error('Failed to load ExportManager:', error);
+      throw error;
+    })
+);
+
+const BrandKitManager = lazy(() =>
+  import('./components/BrandKitManager')
+    .then(module => ({ default: module.BrandKitManager }))
+    .catch(error => {
+      console.error('Failed to load BrandKitManager:', error);
+      throw error;
+    })
+);
+
+const CRMManager = lazy(() =>
+  import('./components/CRMManager')
+    .then(module => ({ default: module.CRMManager }))
+    .catch(error => {
+      console.error('Failed to load CRMManager:', error);
+      throw error;
+    })
+);
+
+const StaffManager = lazy(() =>
+  import('./components/StaffManager')
+    .catch(error => {
+      console.error('Failed to load StaffManager:', error);
+      throw error;
+    })
+);
+
+const ProjectManager = lazy(() =>
+  import('./components/ProjectManager')
+    .catch(error => {
+      console.error('Failed to load ProjectManager:', error);
+      throw error;
+    })
+);
+
+// Enhanced loading component for Suspense fallbacks
+const ComponentLoader: React.FC<{
+  message?: string;
+  size?: 'sm' | 'md' | 'lg';
+  showProgress?: boolean;
+}> = ({
+  message = "Loading component...",
+  size = 'md',
+  showProgress = false
+}) => {
+  const sizeClasses = {
+    sm: 'h-4 w-4',
+    md: 'h-8 w-8',
+    lg: 'h-12 w-12'
+  };
+
+  return (
+    <div className="flex items-center justify-center py-8">
+      <div className="text-center">
+        <div className={`animate-spin rounded-full ${sizeClasses[size]} border-b-2 border-cyan-500 mx-auto mb-3`}></div>
+        <p className="text-slate-400 text-sm">{message}</p>
+        {showProgress && (
+          <div className="mt-2 w-32 bg-slate-700 rounded-full h-1 mx-auto">
+            <div className="bg-cyan-500 h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Error boundary component for lazy-loaded modules
+class LazyLoadErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ComponentType },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ComponentType }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Lazy load error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const FallbackComponent = this.props.fallback;
+      if (FallbackComponent) {
+        return <FallbackComponent />;
+      }
+
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="text-red-500 text-xl mb-2">⚠️</div>
+            <p className="text-slate-400 text-sm">Failed to load component</p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="mt-2 text-cyan-500 hover:text-cyan-400 text-xs underline"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const App: React.FC = () => {
     // Authentication state
     const { user, isAuthenticated, login, logout, hasPermission } = useAuth();
+
+    // Performance optimization hooks
+    const { preloadComponent, isPreloaded } = useComponentPreloader(true);
+
+    // SEO and Accessibility hooks
+    const accessibility = useAccessibility({
+        announcePageChanges: true,
+        manageFocus: true,
+        enableKeyboardNavigation: true,
+    });
+    const { onUserInteraction } = useIntelligentPreloader();
     const [showLogin, setShowLogin] = useState<boolean>(false);
     const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
 
@@ -254,7 +393,7 @@ const App: React.FC = () => {
                 addCrmNotification('error', `Failed to sync campaign to ${crmConnection.provider}: ${errorMsg}`);
                 return false;
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setCrmSyncStatus('error');
             setCrmSyncMessage(`Sync error: ${error.message}`);
             addCrmNotification('error', `CRM sync error: ${error.message}`);
@@ -304,16 +443,35 @@ const App: React.FC = () => {
             const campaignResults = await generateMarketingCampaign(sanitizedProductDescription, generateMedia, sanitizedSettings);
             setResults(campaignResults);
 
-            // Auto-sync with CRM if user has an active connection and current campaign exists
-            if (crmConnection && currentCampaign) {
-                const updatedCampaign = {
+            // Trigger intelligent preloading after successful campaign generation
+            onUserInteraction('campaign-generated');
+
+            // Auto-sync with CRM if user has an active connection
+            if (crmConnection) {
+                // Create a saved campaign object for CRM sync
+                const campaignForSync: SavedCampaign = currentCampaign ? {
                     ...currentCampaign,
                     result: campaignResults,
                     updatedAt: new Date()
+                } : {
+                    id: `campaign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    name: `Campaign - ${new Date().toLocaleDateString()}`,
+                    description: sanitizedProductDescription.slice(0, 100) + (sanitizedProductDescription.length > 100 ? '...' : ''),
+                    productDescription: sanitizedProductDescription,
+                    settings: sanitizedSettings,
+                    result: campaignResults,
+                    status: 'draft' as const,
+                    tags: ['auto-generated'],
+                    version: 1,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
                 };
-                await performCrmSync(updatedCampaign);
+
+                // Perform auto-sync to CRM
+                console.log('🔄 Auto-syncing campaign to CRM:', campaignForSync.name);
+                await performCrmSync(campaignForSync);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError(err.message || 'An unexpected error occurred.');
         } finally {
             setIsLoading(false);
@@ -369,7 +527,7 @@ const App: React.FC = () => {
             if (crmConnection) {
                 await performCrmSync(savedCampaign);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError(`Failed to save campaign: ${err.message}`);
         }
     };
@@ -387,7 +545,7 @@ const App: React.FC = () => {
             if (updated) {
                 setCurrentCampaign(updated);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError(`Failed to update campaign: ${err.message}`);
         }
     };
@@ -407,7 +565,7 @@ const App: React.FC = () => {
         document.head.appendChild(styleElement);
     };
 
-    const handleSettingChange = (field: keyof AdvancedSettings, value: any) => {
+    const handleSettingChange = (field: keyof AdvancedSettings, value: string | number | boolean | string[] | { platform: string; url: string }[] | { url: string }[] | { primary: string; secondary: string }) => {
         setAdvancedSettings(prev => ({ ...prev, [field]: value }));
     };
 
@@ -482,16 +640,74 @@ const App: React.FC = () => {
     const formChipUnselectedClass = "bg-slate-700 hover:bg-slate-600 text-cyan-300";
 
 
+    // Initialize SEO and Performance for the page
+    useEffect(() => {
+        seoService.updatePageSEO('/');
+        seoService.trackSEOMetrics();
+        performanceService.init();
+        accessibility.announce('ZENITH AI Marketing Campaign Generator loaded');
+
+        // Add critical resource hints for performance
+        performanceService.addResourceHints([
+            { url: 'https://fonts.googleapis.com', type: 'preconnect' },
+            { url: 'https://aistudiocdn.com', type: 'preconnect' },
+            { url: 'https://api.airtable.com', type: 'preconnect' },
+            { url: 'https://generativelanguage.googleapis.com', type: 'preconnect' }
+        ]);
+
+        // Cleanup on unmount
+        return () => {
+            performanceService.cleanup();
+        };
+    }, []);
+
+    // Update SEO when campaign is generated
+    useEffect(() => {
+        if (result) {
+            const campaignSEO = seoService.generateCampaignSEO({
+                productName: productDescription.split(' ').slice(0, 3).join(' '), // First 3 words as product name
+                targetAudience: advancedSettings.targetAudience,
+                campaignType: 'AI Generated Campaign'
+            });
+            seoService.updateMetaTags(campaignSEO);
+
+            // Add campaign structured data
+            seoService.addCampaignStructuredData({
+                name: `Marketing Campaign for ${productDescription.slice(0, 50)}...`,
+                description: result.content?.overview || 'AI-generated marketing campaign',
+                dateCreated: new Date().toISOString(),
+                targetAudience: advancedSettings.targetAudience
+            });
+        }
+    }, [result, productDescription, advancedSettings.targetAudience]);
+
     return (
         <div className="bg-slate-900 text-white min-h-screen font-sans">
-            <main className="max-w-4xl mx-auto p-4 md:p-8">
-                <header className="text-center mb-8">
+            {/* ARIA Live Region for screen reader announcements */}
+            <AriaLiveRegion announcements={accessibility.announcements} />
+
+            <main
+                id="main-content"
+                className="max-w-4xl mx-auto p-4 md:p-8"
+                role="main"
+                aria-label="Marketing Campaign Generator"
+            >
+                <header className="text-center mb-8" role="banner">
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex-1"></div>
                         <div className="flex-1">
-                            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                            <h1
+                                className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500"
+                                {...accessibility.getAriaAttributes({
+                                    level: 1,
+                                    label: "ZENITH AI Marketing Campaign Generator - Main Application"
+                                })}
+                            >
                                 AI Marketing Campaign Generator
                             </h1>
+                            <p className="text-slate-400 mt-2 text-lg">
+                                Generate comprehensive marketing campaigns with Google Gemini AI
+                            </p>
                         </div>
                         <div className="flex-1 flex justify-end gap-2">
                             {/* Authentication Button */}
@@ -522,52 +738,85 @@ const App: React.FC = () => {
 
                             {/* Navigation Tabs - only show if authenticated */}
                             {isAuthenticated && (
-                                <>
+                                <nav
+                                    id="navigation"
+                                    role="navigation"
+                                    aria-label="Main navigation"
+                                    className="flex gap-2"
+                                >
                                     <button
-                                        onClick={() => setActiveView('generator')}
+                                        onClick={() => {
+                                            setActiveView('generator');
+                                            accessibility.announce('Switched to Campaign Generator');
+                                        }}
                                         className={`px-4 py-2 rounded-lg font-medium transition-all ${
                                             activeView === 'generator'
                                                 ? 'bg-cyan-600 text-white'
                                                 : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                                         }`}
+                                        {...accessibility.getAriaAttributes({
+                                            label: "AI Campaign Generator",
+                                            selected: activeView === 'generator'
+                                        })}
                                         title="AI Campaign Generator"
                                     >
                                         🚀 Generator
                                     </button>
                                     <button
-                                        onClick={() => setActiveView('campaigns')}
+                                        onClick={() => {
+                                            setActiveView('campaigns');
+                                            accessibility.announce('Switched to Campaign Management');
+                                        }}
                                         className={`px-4 py-2 rounded-lg font-medium transition-all ${
                                             activeView === 'campaigns'
                                                 ? 'bg-cyan-600 text-white'
                                                 : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                                         }`}
+                                        {...accessibility.getAriaAttributes({
+                                            label: "Campaign & Project Management",
+                                            selected: activeView === 'campaigns'
+                                        })}
                                         title="Campaign & Project Management"
                                     >
                                         📁 Campaigns
                                     </button>
                                     <button
-                                        onClick={() => setActiveView('staff')}
+                                        onClick={() => {
+                                            setActiveView('staff');
+                                            accessibility.announce('Switched to Team Management');
+                                        }}
                                         className={`px-4 py-2 rounded-lg font-medium transition-all ${
                                             activeView === 'staff'
                                                 ? 'bg-cyan-600 text-white'
                                                 : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                                         }`}
+                                        {...accessibility.getAriaAttributes({
+                                            label: "Team Management & Accountability",
+                                            selected: activeView === 'staff'
+                                        })}
                                         title="Team Management & Accountability"
                                     >
                                         👥 Team
                                     </button>
                                     <button
-                                        onClick={() => setActiveView('projects')}
+                                        onClick={() => {
+                                            setActiveView('projects');
+                                            accessibility.announce('Switched to Project Management');
+                                        }}
                                         className={`px-4 py-2 rounded-lg font-medium transition-all ${
                                             activeView === 'projects'
                                                 ? 'bg-cyan-600 text-white'
                                                 : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                                         }`}
+                                        {...accessibility.getAriaAttributes({
+                                            label: "Project Management & Tracking",
+                                            selected: activeView === 'projects'
+                                        })}
                                         title="Project Management & Tracking"
                                     >
                                         📊 Projects
                                     </button>
-                                </>
+                                </nav>
                             )}
 
                             {/* Legacy buttons for backward compatibility */}
@@ -691,295 +940,67 @@ const App: React.FC = () => {
 
                 {/* Main Generator Form - only show in generator view */}
                 {activeView === 'generator' && (
-                    <div className="bg-slate-800/50 rounded-lg p-6 shadow-lg border border-slate-700">
-                        <div className="space-y-6">
-                            <div>
-                                <label htmlFor="productDescription" className="block text-lg font-medium text-slate-300 mb-2">
-                                    Describe your product, service, or idea
-                            </label>
-                            <SecureInput
-                                value={productDescription}
-                                onChange={setProductDescription}
-                                type="textarea"
-                                placeholder="e.g., A subscription box for artisanal coffee from around the world."
-                                className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-base"
-                                maxLength={5000}
-                                required={true}
-                                onValidationChange={(isValid, errors) => handleValidationChange('productDescription', isValid, errors)}
-                                sanitizeOnBlur={true}
+                    <ErrorBoundary
+                        onError={(error, errorInfo) => {
+                            console.error('Form error:', error, errorInfo);
+                            onUserInteraction('form-error');
+                        }}
+                        resetKeys={[activeView, productDescription]}
+                    >
+                        <form onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
+                            <ProductDescriptionForm
+                                productDescription={productDescription}
+                                onProductDescriptionChange={setProductDescription}
+                                generateMedia={generateMedia}
+                                onGenerateMediaChange={setGenerateMedia}
+                                onInspirationClick={handleInspirationClick}
+                                onValidationChange={handleValidationChange}
+                                onUserInteraction={onUserInteraction}
                             />
-                            <button onClick={handleInspirationClick} className="text-sm text-cyan-400 hover:text-cyan-300 mt-2">
-                                ✨ Get Inspired
-                            </button>
-                        </div>
 
-                        <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-md">
-                           <label htmlFor="generateMedia" className="font-medium text-slate-200 flex-1 cursor-pointer">
-                                Generate Media Assets (Image Prompts & Video Concepts)
-                            </label>
-                             <input
-                                type="checkbox"
-                                name="generateMedia"
-                                id="generateMedia"
-                                checked={generateMedia}
-                                onChange={(e) => setGenerateMedia(e.target.checked)}
-                                className="h-5 w-5 rounded bg-slate-900 border-slate-500 text-cyan-600 focus:ring-cyan-500 cursor-pointer"
-                            />
-                        </div>
+                            <div className="mt-6">
+                                <AdvancedSettingsForm
+                                    settings={advancedSettings}
+                                    showAdvanced={showAdvanced}
+                                    onToggleAdvanced={() => {
+                                        setShowAdvanced(!showAdvanced);
+                                        if (!showAdvanced) {
+                                            onUserInteraction('advanced-settings-opened');
+                                        }
+                                    }}
+                                    onSettingChange={handleSettingChange}
+                                    onValidationChange={handleValidationChange}
+                                    onUserInteraction={onUserInteraction}
+                                    onLogoUpload={handleLogoUpload}
+                                    onRemoveLogo={removeLogo}
+                                    onAddSocialLink={addSocialLink}
+                                    onRemoveSocialLink={removeSocialLink}
+                                    onSocialLinkChange={handleSocialLinkChange}
+                                    onAddCompetitor={addCompetitor}
+                                    onRemoveCompetitor={removeCompetitor}
+                                    onCompetitorChange={handleCompetitorChange}
+                                    onColorChange={handleColorChange}
+                                />
+                            </div>
 
-                        {/* Advanced Settings */}
-                        <div>
-                            <button onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-between w-full text-left text-lg font-semibold text-slate-200">
-                                Advanced Settings
-                                <ChevronDownIcon className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                            </button>
-                            {showAdvanced && (
-                                <div className="mt-4 p-4 bg-slate-900/70 border border-slate-700 rounded-lg space-y-6">
-                                    {/* Branding Context */}
-                                    <div>
-                                        <h4 className={formLabelClass}>Branding Context</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                            <SecureInput
-                                                value={advancedSettings.companyName}
-                                                onChange={(value) => handleSettingChange('companyName', value)}
-                                                placeholder="Company Name"
-                                                className={formInputClass}
-                                                maxLength={200}
-                                                onValidationChange={(isValid, errors) => handleValidationChange('companyName', isValid, errors)}
-                                                sanitizeOnBlur={true}
-                                            />
-                                            <SecureURLInput
-                                                value={advancedSettings.companyWebsite}
-                                                onChange={(value) => handleSettingChange('companyWebsite', value)}
-                                                placeholder="Company Website (for style analysis)"
-                                                className={formInputClass}
-                                                maxLength={500}
-                                                onValidationChange={(isValid, errors) => handleValidationChange('companyWebsite', isValid, errors)}
-                                            />
-                                            <div>
-                                                <label htmlFor="primaryColor" className="block text-xs text-slate-400 mb-1">Primary Brand Color</label>
-                                                <input
-                                                    id="primaryColor"
-                                                    type="color"
-                                                    value={advancedSettings.brandColors.primary}
-                                                    onChange={e => handleColorChange('primary', e.target.value)}
-                                                    className="w-full h-10 p-1 bg-slate-800 border border-slate-600 rounded-md cursor-pointer"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label htmlFor="secondaryColor" className="block text-xs text-slate-400 mb-1">Secondary Brand Color</label>
-                                                <input
-                                                    id="secondaryColor"
-                                                    type="color"
-                                                    value={advancedSettings.brandColors.secondary}
-                                                    onChange={e => handleColorChange('secondary', e.target.value)}
-                                                    className="w-full h-10 p-1 bg-slate-800 border border-slate-600 rounded-md cursor-pointer"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <label className={formLabelClass}>Company Logo</label>
-                                            {advancedSettings.companyLogo ? (
-                                                <div className="mt-2 flex items-center gap-4">
-                                                    <img src={advancedSettings.companyLogo} alt="Company Logo Preview" className="h-16 w-16 object-contain rounded-md bg-slate-700 p-1 border border-slate-600" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={removeLogo}
-                                                        className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1"
-                                                    >
-                                                        <TrashIcon className="h-4 w-4" /> Remove
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="mt-2">
-                                                    <label htmlFor="logo-upload" className="cursor-pointer bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm font-medium px-4 py-2 rounded-md transition-colors">
-                                                        Upload Image
-                                                    </label>
-                                                    <input
-                                                        id="logo-upload"
-                                                        type="file"
-                                                        accept="image/png, image/jpeg, image/svg+xml, image/webp"
-                                                        className="sr-only"
-                                                        onChange={handleLogoUpload}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {/* Social Media */}
-                                    <div>
-                                        <h4 className={formLabelClass}>Social Media Links</h4>
-                                        {advancedSettings.socialMediaLinks.map((link, index) => (
-                                            <div key={index} className="flex items-center gap-2 mb-2">
-                                                <SecureInput
-                                                    value={link.platform}
-                                                    onChange={(value) => handleSocialLinkChange(index, 'platform', value)}
-                                                    placeholder="Platform (e.g., Instagram)"
-                                                    className={`${formInputClass} flex-1`}
-                                                    maxLength={50}
-                                                    onValidationChange={(isValid, errors) => handleValidationChange(`socialPlatform_${index}`, isValid, errors)}
-                                                />
-                                                <SecureURLInput
-                                                    value={link.url}
-                                                    onChange={(value) => handleSocialLinkChange(index, 'url', value)}
-                                                    placeholder="URL"
-                                                    className={`${formInputClass} flex-grow-[2]`}
-                                                    maxLength={500}
-                                                    onValidationChange={(isValid, errors) => handleValidationChange(`socialUrl_${index}`, isValid, errors)}
-                                                />
-                                                <button onClick={() => removeSocialLink(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
-                                            </div>
-                                        ))}
-                                        <button onClick={addSocialLink} className="text-sm text-cyan-400 hover:text-cyan-300">+ Add Social Link</button>
-                                    </div>
-                                    
-                                    {/* Content & SEO */}
-                                    <div>
-                                        <h4 className={formLabelClass}>Content & SEO</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                            <select value={advancedSettings.nationalLanguage} onChange={e => handleSettingChange('nationalLanguage', e.target.value)} className={formInputClass}>
-                                                {NATIONAL_LANGUAGES.map(lang => <option key={lang} value={lang}>{lang}</option>)}
-                                            </select>
-                                            <div className="flex flex-col gap-2 justify-center">
-                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.useGoogleEAT} onChange={e => handleSettingChange('useGoogleEAT', e.target.checked)} className={formCheckboxClass} /> Use Google E-E-A-T Guidelines</label>
-                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.useHemingwayStyle} onChange={e => handleSettingChange('useHemingwayStyle', e.target.checked)} className={formCheckboxClass} /> Use Hemingway Writing Style</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Strategic Directives */}
-                                     <div>
-                                        <h4 className={formLabelClass}>Strategic Directives</h4>
-                                        <div className="flex flex-col gap-2 mt-2">
-                                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.generateBacklinks} onChange={e => handleSettingChange('generateBacklinks', e.target.checked)} className={formCheckboxClass} /> Generate Backlink Strategy</label>
-                                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.findTrendingTopics} onChange={e => handleSettingChange('findTrendingTopics', e.target.checked)} className={formCheckboxClass} /> Find Relevant Trending Topics</label>
-                                        </div>
-                                    </div>
-
-                                    {/* Competitor Analysis */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className={formLabelClass}>Competitor Websites</h4>
-                                            {isSEMrushAvailable() && (
-                                                <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded border border-green-500/30">
-                                                    ✓ SEMrush Enhanced
-                                                </span>
-                                            )}
-                                        </div>
-                                         {advancedSettings.competitorWebsites.map((comp, index) => (
-                                            <div key={index} className="flex items-center gap-2 mb-2">
-                                                <SecureURLInput
-                                                    value={comp.url}
-                                                    onChange={(value) => handleCompetitorChange(index, value)}
-                                                    placeholder="https://competitor.com"
-                                                    className={`${formInputClass} flex-1`}
-                                                    maxLength={500}
-                                                    onValidationChange={(isValid, errors) => handleValidationChange(`competitor_${index}`, isValid, errors)}
-                                                />
-                                                <button onClick={() => removeCompetitor(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
-                                            </div>
-                                        ))}
-                                        <button onClick={addCompetitor} className="text-sm text-cyan-400 hover:text-cyan-300">+ Add Competitor</button>
-                                    </div>
-                                    
-                                    {/* Platform Targeting */}
-                                    <div>
-                                        <h4 className={formLabelClass}>Target Platforms</h4>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {TARGET_PLATFORMS.map(platform => (
-                                                <label key={platform} className={`${formChipClass} ${advancedSettings.targetPlatforms.includes(platform) ? formChipSelectedClass : formChipUnselectedClass}`}>
-                                                    <input type="checkbox" checked={advancedSettings.targetPlatforms.includes(platform)} onChange={() => handlePlatformToggle(platform)} className="sr-only" />
-                                                    {platform}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Media Generation */}
-                                    {generateMedia && (
-                                        <div>
-                                            <h4 className={formLabelClass}>Media Generation</h4>
-                                            <div className="flex flex-col gap-2 mt-2">
-                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.insertWatermark} onChange={e => handleSettingChange('insertWatermark', e.target.checked)} className={formCheckboxClass} /> Leave space for watermark in image prompts</label>
-                                                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={advancedSettings.generateVerifiableText} onChange={e => handleSettingChange('generateVerifiableText', e.target.checked)} className={formCheckboxClass} /> Prioritize legible text in image prompts</label>
-                                            </div>
-                                            <div className="mt-4 p-3 bg-slate-800/50 border border-slate-700 rounded-md">
-                                                <h5 className="text-xs font-semibold text-slate-400 mb-2">Image Generation Defaults</h5>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className={formLabelClass}>Aspect Ratio</label>
-                                                        <select
-                                                            value={advancedSettings.defaultAspectRatio}
-                                                            onChange={(e) => handleSettingChange('defaultAspectRatio', e.target.value)}
-                                                            className={formInputClass}
-                                                        >
-                                                            <option value="1:1">Square (1:1)</option>
-                                                            <option value="16:9">Widescreen (16:9)</option>
-                                                            <option value="9:16">Story (9:16)</option>
-                                                            <option value="4:3">Landscape (4:3)</option>
-                                                            <option value="3:4">Portrait (3:4)</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className={formLabelClass}>Artistic Style</label>
-                                                        <select
-                                                            value={advancedSettings.defaultImageStyle}
-                                                            onChange={(e) => handleSettingChange('defaultImageStyle', e.target.value)}
-                                                            className={formInputClass}
-                                                        >
-                                                            {ARTISTIC_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                                                        </select>
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className={formLabelClass}>Negative Prompt</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="e.g., text, blurry, watermark"
-                                                            value={advancedSettings.defaultNegativePrompt}
-                                                            onChange={(e) => handleSettingChange('defaultNegativePrompt', e.target.value)}
-                                                            className={formInputClass}
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label htmlFor="default-creativity" className={formLabelClass}>
-                                                            Creativity Level: <span className="font-bold text-cyan-400">{advancedSettings.defaultCreativityLevel}</span>
-                                                        </label>
-                                                        <input
-                                                            id="default-creativity"
-                                                            type="range"
-                                                            min="1"
-                                                            max="10"
-                                                            value={advancedSettings.defaultCreativityLevel}
-                                                            onChange={(e) => handleSettingChange('defaultCreativityLevel', Number(e.target.value))}
-                                                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <div className="mt-6">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading || !productDescription.trim() || !isFormValid}
+                                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center text-lg"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <LoadingSpinner />
+                                            <span className="ml-2">Generating...</span>
+                                        </>
+                                    ) : (
+                                        '🚀 Generate Campaign'
                                     )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="mt-6">
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isLoading || !productDescription.trim() || !isFormValid}
-                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center text-lg"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <LoadingSpinner />
-                                    <span className="ml-2">Generating...</span>
-                                </>
-                            ) : (
-                                '🚀 Generate Campaign'
-                            )}
-                        </button>
-                    </div>
-                </div>
+                                </button>
+                            </div>
+                        </form>
+                    </ErrorBoundary>
                 )}
 
                 {/* Dynamic Content Based on Active View */}
@@ -988,19 +1009,21 @@ const App: React.FC = () => {
                         {/* Campaign Manager - Legacy for backward compatibility */}
                         {showCampaignManager && (
                             <div className="mt-8">
-                                <Suspense fallback={<ComponentLoader message="Loading campaign manager..." />}>
-                                    <CampaignManager
-                                        onLoadCampaign={handleLoadCampaign}
-                                        onUseTemplate={handleUseTemplate}
-                                        currentCampaign={currentCampaign}
-                                        onSaveCurrent={handleSaveCurrent}
-                                        resultsExist={!!results}
-                                        hasUnsavedResults={!!results && (!currentCampaign ||
-                                            (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
-                                        )}
-                                        currentCampaignData={results}
-                                    />
-                                </Suspense>
+                                <LazyLoadErrorBoundary>
+                                    <Suspense fallback={<ComponentLoader message="Loading campaign manager..." showProgress />}>
+                                        <CampaignManager
+                                            onLoadCampaign={handleLoadCampaign}
+                                            onUseTemplate={handleUseTemplate}
+                                            currentCampaign={currentCampaign}
+                                            onSaveCurrent={handleSaveCurrent}
+                                            resultsExist={!!results}
+                                            hasUnsavedResults={!!results && (!currentCampaign ||
+                                                (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                            )}
+                                            currentCampaignData={results}
+                                        />
+                                    </Suspense>
+                                </LazyLoadErrorBoundary>
                             </div>
                         )}
                     </>
@@ -1021,9 +1044,11 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <Suspense fallback={<ComponentLoader message="Loading team manager..." />}>
-                                <StaffManager currentUserId={user?.id} />
-                            </Suspense>
+                            <LazyLoadErrorBoundary>
+                                <Suspense fallback={<ComponentLoader message="Loading team manager..." showProgress />}>
+                                    <StaffManager currentUserId={user?.id} />
+                                </Suspense>
+                            </LazyLoadErrorBoundary>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -1050,9 +1075,11 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <Suspense fallback={<ComponentLoader message="Loading project manager..." />}>
-                                <ProjectManager />
-                            </Suspense>
+                            <LazyLoadErrorBoundary>
+                                <Suspense fallback={<ComponentLoader message="Loading project manager..." showProgress />}>
+                                    <ProjectManager />
+                                </Suspense>
+                            </LazyLoadErrorBoundary>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -1079,22 +1106,24 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <Suspense fallback={<ComponentLoader message="Loading campaign manager..." />}>
-                                <CampaignManager
-                                    onLoadCampaign={handleLoadCampaign}
-                                    onUseTemplate={handleUseTemplate}
-                                    currentCampaign={currentCampaign}
-                                    onSaveCurrent={handleSaveCurrent}
-                                    resultsExist={!!results}
-                                    hasUnsavedResults={!!results && (!currentCampaign ||
-                                        (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
-                                    )}
-                                    currentCampaignData={results}
-                                    onCampaignAssign={(campaignId, staffIds) => {
-                                        console.log(`Campaign ${campaignId} assigned to:`, staffIds);
-                                    }}
-                                />
-                            </Suspense>
+                            <LazyLoadErrorBoundary>
+                                <Suspense fallback={<ComponentLoader message="Loading campaign manager..." showProgress />}>
+                                    <CampaignManager
+                                        onLoadCampaign={handleLoadCampaign}
+                                        onUseTemplate={handleUseTemplate}
+                                        currentCampaign={currentCampaign}
+                                        onSaveCurrent={handleSaveCurrent}
+                                        resultsExist={!!results}
+                                        hasUnsavedResults={!!results && (!currentCampaign ||
+                                            (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                        )}
+                                        currentCampaignData={results}
+                                        onCampaignAssign={(campaignId, staffIds) => {
+                                            console.log(`Campaign ${campaignId} assigned to:`, staffIds);
+                                        }}
+                                    />
+                                </Suspense>
+                            </LazyLoadErrorBoundary>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -1122,45 +1151,51 @@ const App: React.FC = () => {
                 )}
 
                 {/* Export Manager */}
-                <Suspense fallback={<ComponentLoader message="Loading export manager..." />}>
-                    <ExportManager
-                        campaign={currentCampaign}
-                        results={results}
-                        isVisible={showExportManager}
-                        onClose={() => setShowExportManager(false)}
-                    />
-                </Suspense>
+                <LazyLoadErrorBoundary>
+                    <Suspense fallback={<ComponentLoader message="Loading export manager..." showProgress />}>
+                        <ExportManager
+                            campaign={currentCampaign}
+                            results={results}
+                            isVisible={showExportManager}
+                            onClose={() => setShowExportManager(false)}
+                        />
+                    </Suspense>
+                </LazyLoadErrorBoundary>
 
                 {/* Brand Kit Manager */}
-                <Suspense fallback={<ComponentLoader message="Loading brand kit manager..." />}>
-                    <BrandKitManager
-                        isVisible={showBrandKitManager}
-                        onClose={() => setShowBrandKitManager(false)}
-                        onBrandKitUpdate={handleBrandKitUpdate}
-                    />
-                </Suspense>
+                <LazyLoadErrorBoundary>
+                    <Suspense fallback={<ComponentLoader message="Loading brand kit manager..." showProgress />}>
+                        <BrandKitManager
+                            isVisible={showBrandKitManager}
+                            onClose={() => setShowBrandKitManager(false)}
+                            onBrandKitUpdate={handleBrandKitUpdate}
+                        />
+                    </Suspense>
+                </LazyLoadErrorBoundary>
 
                 {/* CRM Manager - only show in generator view */}
                 {activeView === 'generator' && (
-                    <Suspense fallback={<ComponentLoader message="Loading CRM manager..." />}>
-                        <CRMManager
-                            isVisible={showCRMManager}
-                            onClose={() => setShowCRMManager(false)}
-                            onConnectionChange={() => {
-                                // Refresh CRM connection status when connections are modified
-                                const activeConnection = CRMIntegrationService.getActiveConnection();
-                                setCrmConnection(activeConnection);
-                                if (activeConnection) {
-                                    setCrmSyncStatus('idle');
-                                    setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
-                                    addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
-                                } else {
-                                    setCrmSyncStatus('idle');
-                                    setCrmSyncMessage('');
-                                }
-                            }}
-                        />
-                    </Suspense>
+                    <LazyLoadErrorBoundary>
+                        <Suspense fallback={<ComponentLoader message="Loading CRM manager..." showProgress />}>
+                            <CRMManager
+                                isVisible={showCRMManager}
+                                onClose={() => setShowCRMManager(false)}
+                                onConnectionChange={() => {
+                                    // Refresh CRM connection status when connections are modified
+                                    const activeConnection = CRMIntegrationService.getActiveConnection();
+                                    setCrmConnection(activeConnection);
+                                    if (activeConnection) {
+                                        setCrmSyncStatus('idle');
+                                        setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
+                                        addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
+                                    } else {
+                                        setCrmSyncStatus('idle');
+                                        setCrmSyncMessage('');
+                                    }
+                                }}
+                            />
+                        </Suspense>
+                    </LazyLoadErrorBoundary>
                 )}
 
                 {/* Login Modal */}

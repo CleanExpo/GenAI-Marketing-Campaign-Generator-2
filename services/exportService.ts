@@ -9,10 +9,43 @@ export interface ExportOptions {
   customFileName?: string;
 }
 
+// Lazy loader for jsPDF with caching and error handling
+class PDFLibLoader {
+  private static instance: any = null;
+  private static isLoading = false;
+  private static loadingPromise: Promise<any> | null = null;
+
+  static async load() {
+    if (this.instance) {
+      return this.instance;
+    }
+
+    if (this.isLoading && this.loadingPromise) {
+      return this.loadingPromise;
+    }
+
+    this.isLoading = true;
+    this.loadingPromise = import('jspdf')
+      .then((module) => {
+        this.instance = module.jsPDF;
+        this.isLoading = false;
+        return this.instance;
+      })
+      .catch((error) => {
+        this.isLoading = false;
+        this.loadingPromise = null;
+        throw new Error(`Failed to load PDF library: ${error.message}`);
+      });
+
+    return this.loadingPromise;
+  }
+}
+
 export class ExportService {
 
   static async exportToPDF(campaign: SavedCampaign | CampaignResult, options: ExportOptions = {}): Promise<void> {
-    const { jsPDF } = await import('jspdf');
+    try {
+      const jsPDF = await PDFLibLoader.load();
     const doc = new jsPDF();
 
     // Document setup

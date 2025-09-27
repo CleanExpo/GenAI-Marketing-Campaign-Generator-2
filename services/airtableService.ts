@@ -4,6 +4,8 @@
  * Handles all Airtable operations with staff accountability and project management
  */
 
+import { CampaignData, BrandKitData, APIResponse, APIError } from '../types';
+
 // Core interfaces for Airtable integration
 export interface AirtableConfig {
   apiKey: string;
@@ -42,7 +44,7 @@ export interface CampaignRecord {
   dueDate?: Date;
   budget?: number;
   tags: string[];
-  campaignData: any; // The AI-generated campaign content
+  campaignData: CampaignData; // The AI-generated campaign content
   approvalHistory: ApprovalRecord[];
   projectId?: string;
   estimatedHours: number;
@@ -75,7 +77,7 @@ export interface ClientRecord {
   company: string;
   industry: string;
   contactPerson: string;
-  brandKit?: any; // Brand kit data
+  brandKit?: BrandKitData; // Brand kit data
   projects: string[]; // Project IDs
   accountManager: string; // Staff member ID
   createdAt: Date;
@@ -112,7 +114,7 @@ export interface ActivityLog {
   resourceId: string; // Campaign, Project, or Client ID
   resourceType: 'Campaign' | 'Project' | 'Client' | 'Task';
   details: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   timestamp: Date;
   ipAddress?: string;
   userAgent?: string;
@@ -132,7 +134,7 @@ export interface WorkloadAnalytics {
 
 // Airtable Table Names
 export const AIRTABLE_TABLES = {
-  STAFF: 'Staff',
+  STAFF: 'Team Members', // Fixed: Using actual table name from base
   CAMPAIGNS: 'Campaigns',
   PROJECTS: 'Projects',
   CLIENTS: 'Clients',
@@ -190,8 +192,8 @@ class AirtableService {
 
     try {
       // Try to access the base by attempting to list tables (most permissive test)
-      // If no specific table exists, try common table names in order of preference
-      const testTables = ['Staff', 'Campaigns', 'Projects', 'Clients', 'Table1', 'Table 1'];
+      // Use actual table names from the known base structure
+      const testTables = ['Team Members', 'Campaigns', 'Projects', 'Clients', 'Contacts', 'Companies', 'Deals', 'Communications'];
 
       let connectionSuccess = false;
       let lastError = null;
@@ -246,12 +248,12 @@ class AirtableService {
   /**
    * Make HTTP request to Airtable API
    */
-  private async makeRequest(
+  private async makeRequest<T = unknown>(
     path: string,
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
-    body?: any,
-    queryParams?: Record<string, any>
-  ): Promise<any> {
+    body?: Record<string, unknown>,
+    queryParams?: Record<string, string | number | boolean>
+  ): Promise<T> {
     if (!this.config) {
       throw new Error('Airtable not initialized');
     }
@@ -310,7 +312,7 @@ class AirtableService {
   /**
    * Generic record creation with retry logic
    */
-  private async createRecord<T>(tableName: string, fields: any, retries = 0): Promise<T> {
+  private async createRecord<T>(tableName: string, fields: Record<string, unknown>, retries = 0): Promise<T> {
     if (!this.config) {
       throw new Error('Airtable not initialized');
     }
@@ -328,7 +330,7 @@ class AirtableService {
         createdAt: response.createdTime ? new Date(response.createdTime) : new Date()
       } as T;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (retries < (this.config?.retryAttempts || 3) && this.isRetryableError(error)) {
         console.warn(`Retrying request to ${tableName}... Attempt ${retries + 1}`);
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
@@ -341,7 +343,7 @@ class AirtableService {
   /**
    * Generic record update with retry logic
    */
-  private async updateRecord<T>(tableName: string, recordId: string, fields: any, retries = 0): Promise<T> {
+  private async updateRecord<T>(tableName: string, recordId: string, fields: Record<string, unknown>, retries = 0): Promise<T> {
     if (!this.config) {
       throw new Error('Airtable not initialized');
     }
@@ -359,7 +361,7 @@ class AirtableService {
         updatedAt: new Date()
       } as T;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (retries < (this.config?.retryAttempts || 3) && this.isRetryableError(error)) {
         console.warn(`Retrying update to ${tableName}... Attempt ${retries + 1}`);
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
@@ -411,7 +413,7 @@ class AirtableService {
         queryParams
       );
 
-      return response.records.map((record: any) => ({
+      return response.records.map((record: { id: string; fields: Record<string, unknown>; createdTime: string }) => ({
         id: record.id,
         ...record.fields,
         createdAt: record.createdTime ? new Date(record.createdTime) : new Date(),
@@ -427,7 +429,7 @@ class AirtableService {
   /**
    * Check if error is retryable
    */
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
     const retryableStatusCodes = [429, 502, 503, 504];
     return retryableStatusCodes.includes(error.statusCode) ||
            error.message?.includes('RATE_LIMIT') ||
@@ -479,17 +481,19 @@ class AirtableService {
    */
   async getStaffMember(staffId: string): Promise<StaffMember | null> {
     try {
-      if (!this.base) {
+      if (!this.config) {
         throw new Error('Airtable not initialized');
       }
 
-      await this.enforceRateLimit();
-      const record = await this.base(AIRTABLE_TABLES.STAFF).find(staffId);
+      const response = await this.makeRequest(
+        `/${this.config.baseId}/${encodeURIComponent(AIRTABLE_TABLES.STAFF)}/${staffId}`,
+        'GET'
+      );
 
       return {
-        id: record.id,
-        ...record.fields,
-        createdAt: record.get('Created') || new Date()
+        id: response.id,
+        ...response.fields,
+        createdAt: response.createdTime ? new Date(response.createdTime) : new Date()
       } as StaffMember;
 
     } catch (error) {
@@ -502,7 +506,7 @@ class AirtableService {
    * Update staff member
    */
   async updateStaffMember(staffId: string, updates: Partial<StaffMember>): Promise<StaffMember> {
-    const fields: any = {};
+    const fields: Record<string, unknown> = {};
 
     if (updates.email) fields['Email'] = updates.email;
     if (updates.name) fields['Name'] = updates.name;
@@ -644,7 +648,7 @@ class AirtableService {
    * Update campaign
    */
   async updateCampaign(campaignId: string, updates: Partial<CampaignRecord>, updatedBy: string): Promise<CampaignRecord> {
-    const fields: any = {};
+    const fields: Record<string, unknown> = {};
 
     if (updates.title) fields['Title'] = updates.title;
     if (updates.description) fields['Description'] = updates.description;

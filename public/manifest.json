@@ -1,0 +1,116 @@
+{
+  "name": "ZENITH - AI Marketing Campaign Generator",
+  "short_name": "ZENITH AI Marketing",
+  "description": "AI-powered marketing campaign generation with real-time competitive analysis, SEO optimization, and CRM integration",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0891b2",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["business", "productivity", "marketing"],
+  "icons": [
+    {
+      "src": "/zenith-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/zenith-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/zenith-logo.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ZENITH AI Marketing Campaign Generator - Desktop View"
+    },
+    {
+      "src": "/zenith-logo.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ZENITH AI Marketing Campaign Generator - Mobile View"
+    }
+  ],
+  "features": [
+    "AI-powered campaign generation",
+    "Real-time competitive analysis",
+    "SEO optimization tools",
+    "Airtable CRM integration",
+    "Social media content creation",
+    "Multi-platform targeting",
+    "Brand kit management",
+    "Performance analytics"
+  ],
+  "shortcuts": [
+    {
+      "name": "Generate Campaign",
+      "short_name": "Generate",
+      "description": "Create a new AI marketing campaign",
+      "url": "/#campaign-generator",
+      "icons": [
+        {
+          "src": "/zenith-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "CRM Integration",
+      "short_name": "CRM",
+      "description": "Manage CRM connections and sync",
+      "url": "/#crm-integration",
+      "icons": [
+        {
+          "src": "/zenith-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Brand Kit",
+      "short_name": "Brand",
+      "description": "Manage brand assets and guidelines",
+      "url": "/#brand-kit",
+      "icons": [
+        {
+          "src": "/zenith-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "dir": "ltr",
+  "iarc_rating_id": "",
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+zenith",
+      "url": "/?campaign=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".json"],
+        "text/csv": [".csv"]
+      }
+    }
+  ]
+}

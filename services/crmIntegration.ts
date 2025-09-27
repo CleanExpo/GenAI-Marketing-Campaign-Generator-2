@@ -38,7 +38,7 @@ export interface CRMFieldMapping {
   zenithField: keyof SavedCampaign | keyof UserProfile | string;
   crmField: string;
   direction: 'bidirectional' | 'to_crm' | 'from_crm';
-  transform?: (value: any) => any;
+  transform?: (value: unknown) => unknown;
   required: boolean;
 }
 
@@ -66,7 +66,7 @@ export interface CRMContact {
   lastName?: string;
   company?: string;
   phone?: string;
-  customFields: Record<string, any>;
+  customFields: Record<string, unknown>;
 }
 
 export interface CRMDeal {
@@ -77,7 +77,7 @@ export interface CRMDeal {
   closeDate?: Date;
   contactId: string;
   companyId?: string;
-  customFields: Record<string, any>;
+  customFields: Record<string, unknown>;
 }
 
 export interface CRMCompany {
@@ -86,7 +86,7 @@ export interface CRMCompany {
   domain?: string;
   industry?: string;
   size?: string;
-  customFields: Record<string, any>;
+  customFields: Record<string, unknown>;
 }
 
 export interface CRMCampaign {
@@ -97,7 +97,7 @@ export interface CRMCampaign {
   startDate?: Date;
   endDate?: Date;
   budget?: number;
-  customFields: Record<string, any>;
+  customFields: Record<string, unknown>;
 }
 
 export interface CRMSyncResult {
@@ -728,6 +728,8 @@ export class AirtableProvider extends CRMProvider {
         ...options.headers
       };
 
+      console.log(`🔄 Airtable API Request: ${options.method || 'GET'} ${this.baseUrl}${endpoint}`);
+
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers
@@ -735,8 +737,9 @@ export class AirtableProvider extends CRMProvider {
 
       if (!response.ok) {
         const errorBody = await response.text();
+        console.error(`❌ Airtable API Error ${response.status}:`, errorBody);
 
-        // Handle common Airtable API errors
+        // Handle common Airtable API errors with specific guidance
         if (response.status === 401) {
           throw new Error('Invalid Airtable API key. Please check your credentials.');
         }
@@ -744,13 +747,29 @@ export class AirtableProvider extends CRMProvider {
           throw new Error('Insufficient permissions. Make sure your API key has base:read and base:write scopes.');
         }
         if (response.status === 404) {
-          throw new Error('Base or table not found. Please check your Base ID and table names.');
+          throw new Error(`Base or table not found. Endpoint: ${endpoint}. Please check your Base ID and table names.`);
+        }
+        if (response.status === 422) {
+          let detailedError = 'Field validation error. ';
+          try {
+            const errorJson = JSON.parse(errorBody);
+            if (errorJson.error && errorJson.error.type === 'INVALID_REQUEST_UNKNOWN') {
+              detailedError += 'Unknown field(s) in request. Check field names match exactly.';
+            } else if (errorJson.error && errorJson.error.message) {
+              detailedError += errorJson.error.message;
+            }
+          } catch {
+            detailedError += errorBody;
+          }
+          throw new Error(detailedError);
         }
 
         throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorBody}`);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log(`✅ Airtable API Success: ${options.method || 'GET'} ${endpoint}`);
+      return result;
     } catch (error: any) {
       // Handle specific JSON parsing errors (common when Airtable returns HTML error pages)
       if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
@@ -826,6 +845,7 @@ export class AirtableProvider extends CRMProvider {
   }
 
   private mapToAirtableCompany(company: Partial<CRMCompany>): any {
+    // Map to actual Companies table fields in the base
     return {
       'Name': company.name,
       'Domain': company.domain,
@@ -852,32 +872,48 @@ export class AirtableProvider extends CRMProvider {
   }
 
   private mapToAirtableCampaign(campaign: Partial<CRMCampaign>): any {
+    // Use only the fields that actually exist in the Campaigns table:
+    // Name, Type, Status, Start Date, End Date, Budget
+
+    // Create a descriptive name that includes ZENITH ID for tracking
+    const campaignName = campaign.name || 'ZENITH Campaign';
+    const zenithId = campaign.customFields?.zenith_campaign_id || campaign.id;
+    const nameWithId = zenithId ? `${campaignName} [${zenithId.slice(-8)}]` : campaignName;
+
     return {
-      'Name': campaign.name,
-      'Type': campaign.type,
-      'Status': campaign.status,
+      'Name': nameWithId,
+      'Type': campaign.type || 'Marketing Campaign',
+      'Status': campaign.status || 'Planning',
       'Start Date': campaign.startDate?.toISOString().split('T')[0],
       'End Date': campaign.endDate?.toISOString().split('T')[0],
-      'Budget': campaign.budget,
-      'ZENITH Campaign ID': campaign.id,
-      ...Object.entries(campaign.customFields || {}).reduce((acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      }, {} as any)
+      'Budget': campaign.budget || 0
     };
   }
 
   private mapFromAirtableCampaign(airtableRecord: any): CRMCampaign {
     const fields = airtableRecord.fields || {};
+
+    // Extract ZENITH ID from name if present (format: "Campaign Name [zenithId]")
+    const name = fields['Name'] || '';
+    const zenithIdMatch = name.match(/\[([^\]]+)\]$/);
+    const zenithId = zenithIdMatch ? zenithIdMatch[1] : null;
+
     return {
       id: airtableRecord.id,
-      name: fields['Name'] || '',
+      name: zenithId ? name.replace(/\s*\[[^\]]+\]$/, '') : name, // Remove ZENITH ID from display name
       type: fields['Type'] || 'Marketing Campaign',
       status: fields['Status'] || 'Planning',
       startDate: fields['Start Date'] ? new Date(fields['Start Date']) : undefined,
       endDate: fields['End Date'] ? new Date(fields['End Date']) : undefined,
-      budget: fields['Budget'],
-      customFields: this.extractAirtableCustomFields(fields, ['Name', 'Type', 'Status', 'Start Date', 'End Date', 'Budget', 'ZENITH Campaign ID'])
+      budget: fields['Budget'] || 0,
+      customFields: {
+        // Store the extracted ZENITH ID
+        zenith_campaign_id: zenithId,
+        // Include other custom fields
+        ...this.extractAirtableCustomFields(fields, [
+          'Name', 'Type', 'Status', 'Start Date', 'End Date', 'Budget'
+        ])
+      }
     };
   }
 
@@ -1112,17 +1148,22 @@ export class CRMIntegrationService {
     };
 
     try {
-      // Map campaign to CRM campaign
+      // Map campaign to CRM campaign with complete metadata
       const crmCampaign: Partial<CRMCampaign> = {
         name: campaign.name,
         type: 'Marketing Campaign',
-        status: campaign.status === 'active' ? 'Active' : 'Planned',
+        status: campaign.status === 'active' ? 'Active' : campaign.status === 'draft' ? 'Planning' : 'Completed',
         startDate: campaign.createdAt,
         customFields: {
           zenith_campaign_id: campaign.id,
           zenith_description: campaign.description,
           zenith_product_description: campaign.productDescription,
-          zenith_tags: campaign.tags.join(',')
+          zenith_tags: campaign.tags.join(','),
+          zenith_result_data: campaign.result,
+          zenith_settings: campaign.settings,
+          zenith_created_at: campaign.createdAt.toISOString(),
+          zenith_updated_at: campaign.updatedAt.toISOString(),
+          zenith_version: campaign.version
         }
       };
 

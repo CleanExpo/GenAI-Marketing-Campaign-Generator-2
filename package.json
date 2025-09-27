@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "jest",
     "test:security": "jest tests/security.test.ts",
-    "security:audit": "npm audit && echo 'Security audit completed'"
+    "security:audit": "npm audit && echo 'Security audit completed'",
+    "analyze": "node scripts/measure-performance.js",
+    "build:analyze": "npm run build && npm run analyze"
   },
   "dependencies": {
     "@alloc/quick-lru": "^5.2.0",
