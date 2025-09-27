@@ -16,7 +16,19 @@ export default defineConfig(() => {
       },
       server: {
         port: 3000,
-        host: '0.0.0.0'
+        host: '0.0.0.0',
+        proxy: {
+          '/api/airtable': {
+            target: 'https://api.airtable.com/v0',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/airtable/, ''),
+            configure: (proxy, _options) => {
+              proxy.on('error', (err, _req, _res) => {
+                console.log('Airtable proxy error:', err);
+              });
+            }
+          }
+        }
       }
     };
 });

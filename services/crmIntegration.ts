@@ -464,12 +464,12 @@ export class AirtableProvider extends CRMProvider {
 
   constructor(connection: CRMConnection) {
     super(connection);
-    // Use environment variables if available, otherwise fall back to connection credentials
-    this.apiKey = import.meta.env.VITE_AIRTABLE_API_KEY || connection.configuration.credentials.apiKey || '';
-    this.baseId = import.meta.env.VITE_AIRTABLE_BASE_ID || connection.configuration.credentials.domain || ''; // Using domain field for base ID
+    // Prioritize connection credentials over environment variables for manual connections
+    this.apiKey = connection.configuration.credentials.apiKey || import.meta.env.VITE_AIRTABLE_API_KEY || '';
+    this.baseId = connection.configuration.credentials.domain || import.meta.env.VITE_AIRTABLE_BASE_ID || ''; // Using domain field for base ID
 
-    // Use Vercel serverless function in production, Vite proxy in development
-    this.baseUrl = import.meta.env.PROD ? '/api/airtable' : '/api/airtable';
+    // Use proxy in both development and production since we don't have serverless function yet
+    this.baseUrl = '/api/airtable';
   }
 
   async authenticate(): Promise<boolean> {
@@ -717,17 +717,16 @@ export class AirtableProvider extends CRMProvider {
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     try {
-      // In production (Vercel), the serverless function handles authentication
-      // In development, we include the Authorization header for the proxy
+      // Validate that we have required credentials
+      if (!this.apiKey || !this.baseId) {
+        throw new Error('Missing Airtable credentials. Please provide both API key and Base ID.');
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
         ...options.headers
       };
-
-      // Only add Authorization header in development mode or when using manual credentials
-      if (!import.meta.env.PROD || !import.meta.env.VITE_AIRTABLE_TOKEN) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-      }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
@@ -736,6 +735,18 @@ export class AirtableProvider extends CRMProvider {
 
       if (!response.ok) {
         const errorBody = await response.text();
+
+        // Handle common Airtable API errors
+        if (response.status === 401) {
+          throw new Error('Invalid Airtable API key. Please check your credentials.');
+        }
+        if (response.status === 403) {
+          throw new Error('Insufficient permissions. Make sure your API key has base:read and base:write scopes.');
+        }
+        if (response.status === 404) {
+          throw new Error('Base or table not found. Please check your Base ID and table names.');
+        }
+
         throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorBody}`);
       }
 
@@ -743,12 +754,12 @@ export class AirtableProvider extends CRMProvider {
     } catch (error: any) {
       // Handle specific JSON parsing errors (common when Airtable returns HTML error pages)
       if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
-        throw new Error('Airtable API returned an HTML error page. This usually means invalid credentials or the API endpoint is unreachable. Please check your Airtable token and base ID.');
+        throw new Error('Airtable API returned an HTML error page. This usually means the proxy is not working or CORS is blocking the request. Please restart the development server.');
       }
 
       // Provide helpful error messages for common issues
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error(`Network Error: Unable to connect to Airtable API. Please check your internet connection and API credentials. ${error.message}`);
+        throw new Error(`Network Error: Unable to connect to Airtable API. Please check your internet connection and restart the development server. ${error.message}`);
       }
 
       throw error;
