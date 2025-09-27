@@ -8,18 +8,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
     target: 'es2020',
     minify: 'esbuild',
-    rollupOptions: {
-      external: (id) => {
-        // Externalize all Rollup platform-specific dependencies
-        if (id.includes('@rollup/rollup-')) {
-          return true;
-        }
-        return false;
-      }
-    }
+    sourcemap: false
   },
   server: {
     port: 3000,
