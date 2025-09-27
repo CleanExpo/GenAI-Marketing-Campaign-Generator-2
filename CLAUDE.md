@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a React 19 + TypeScript + Vite application that generates comprehensive marketing campaigns using Google's Gemini AI. The architecture follows a service-component pattern with centralized state management in the main App component.
+This is a React 18 + TypeScript + Vite application that generates comprehensive marketing campaigns using Google's Gemini AI with enterprise-grade Airtable CRM integration. The architecture follows a service-component pattern with centralized state management and abstract provider patterns for scalable integrations.
 
 ### Core Technologies
-- **Frontend**: React 19.1.1, TypeScript 5.8.2, Vite 6.2.0
+- **Frontend**: React 18.2.0, TypeScript 5.2.2, Vite 5.4.20
 - **AI Integration**: Google Gemini AI (@google/genai 1.20.0) + SEMrush API (optional)
+- **CRM Integration**: Airtable (v0.12.2) with abstract provider architecture
+- **Enterprise Features**: Staff management, project tracking, campaign accountability
 - **Styling**: Tailwind CSS (CDN-loaded)
 - **Build**: Vite with hot reload and fast development
 - **Deployment**: Vercel with automatic deployments from main branch
@@ -39,10 +41,10 @@ npm run preview
 npm install
 ```
 
-**Windows Development Issues**: On Windows systems, you may encounter Rollup dependency errors. Fix with:
+**Windows Development Issues**: On Windows systems, you may encounter Rollup dependency errors. The `@rollup/rollup-win32-x64-msvc` dependency is already included but may need reinstallation:
 ```bash
 # If you see "@rollup/rollup-win32-x64-msvc" missing error:
-npm install @rollup/rollup-win32-x64-msvc
+npm install @rollup/rollup-win32-x64-msvc --save-dev
 
 # If persistent issues, clean install:
 rm -rf node_modules package-lock.json
@@ -61,9 +63,20 @@ npm install
 
 **Required Environment Variables**:
 - `VITE_GEMINI_API_KEY` (Required): Google Gemini API key from Google AI Studio
+- `VITE_AIRTABLE_API_KEY` (Optional): Airtable Personal Access Token for CRM integration
+- `VITE_AIRTABLE_BASE_ID` (Optional): Airtable Base ID for enterprise features
 - `VITE_SEMRUSH_API_KEY` (Optional): SEMrush API key for enhanced competitor analysis
 
-**Development**: Create `.env.local` file with your API keys (see `.env.example`)
+**Development**: Create `.env.local` file with your API keys (see `.env.local.example`):
+```bash
+VITE_GEMINI_API_KEY=your_actual_gemini_api_key_here
+VITE_AIRTABLE_API_KEY=your_airtable_personal_access_token
+VITE_AIRTABLE_BASE_ID=your_airtable_base_id
+VITE_SEMRUSH_API_KEY=your_semrush_api_key_here
+```
+
+**⚠️ CRITICAL**: Placeholder values like `your_gemini_api_key_here` will cause API failures. Campaign generation requires valid Gemini API key.
+
 **Deployment**: Configure environment variables in Vercel dashboard
 **AI Studio Integration**: Pre-configured for deployment at https://ai.studio/apps/drive/1bq2wUh5pIiWkE-QyXRFbZdlPJZgw6Ee2
 
@@ -117,6 +130,21 @@ npm install
 - Competitor discovery and analysis
 - Graceful fallback when API key unavailable
 
+**Enterprise Components**:
+- **CampaignManager.tsx** - Campaign lifecycle management with Airtable sync
+- **StaffManager.tsx** - Staff accountability and workload analytics
+- **ProjectManager.tsx** - Project tracking and milestone management
+- **CRMManager.tsx** - Multi-provider CRM integration interface
+- **BrandKitManager.tsx** - Brand asset and guideline management
+- **ExportManager.tsx** - Campaign export to PDF/other formats
+
+**Core Services**:
+- **airtableService.ts** - Enterprise-grade Airtable integration with staff management
+- **authService.ts** - Authentication and user management
+- **crmIntegration.ts** - Abstract CRM provider architecture
+- **campaignStorage.ts** - Local campaign persistence and management
+- **brandKitService.ts** - Brand asset processing and storage
+
 ## Advanced Features
 
 **Interactive Image Generation**: Users can modify prompts, styles, aspect ratios, and generate new images on-demand with download capability.
@@ -135,6 +163,18 @@ All components use strict TypeScript with comprehensive interfaces:
 - `CampaignResult` - Complete campaign data structure
 - `AdvancedSettings` - User configuration options
 - Component prop interfaces with proper null/undefined handling
+
+**TypeScript Compilation Issues**: Currently has type definition errors that don't affect runtime:
+```bash
+# Check TypeScript compilation
+npx tsc --noEmit
+```
+Known issues:
+- Missing type definitions for Babel packages (`@babel/generator`, `@babel/template`, `@babel/traverse`)
+- TSConfig project reference configuration issues
+- Output file conflicts with source files
+
+These don't affect the build process (`npm run build` succeeds) but should be resolved for clean development.
 
 ## File Upload Handling
 
@@ -302,3 +342,25 @@ abstract class CRMProvider {
 - Batch operations limited to 10 records per request (Airtable limit)
 - Rate limiting: 5 requests per second per base
 - Proxy configuration handles CORS in development via Vite proxy
+
+## Common Development Issues
+
+### API Key Problems
+- **"API key not valid"**: Replace placeholder values in `.env.local` with real API keys
+- **Campaign generation fails**: Ensure `VITE_GEMINI_API_KEY` has valid Google Gemini API key
+- **Airtable connection errors**: Expected when using placeholder `VITE_AIRTABLE_API_KEY` values
+
+### Development Server Issues
+- **"Cannot find module @rollup/rollup-win32-x64-msvc"**: Run `npm install @rollup/rollup-win32-x64-msvc --save-dev`
+- **White page on localhost**: Check browser console for errors, verify dev server is running
+- **Port conflicts**: Vite auto-increments port (3000 → 3001 → 3002, etc.)
+
+### Build and TypeScript Issues
+- **TypeScript errors**: Known issues with Babel type definitions (don't affect runtime)
+- **Large bundle warning**: 643kB main chunk size warning (optimization needed)
+- **Build succeeds with warnings**: This is expected behavior
+
+### CRM Integration Issues
+- **Airtable 404 errors**: Expected when using placeholder credentials
+- **CRM connection failed**: Verify Airtable base ID and API key are correct
+- **CORS errors**: Ensure Vite proxy is working (`/api/airtable` routes)
