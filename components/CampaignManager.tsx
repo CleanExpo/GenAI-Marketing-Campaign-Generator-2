@@ -85,7 +85,21 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
       setProjects(projectsData);
     } catch (error) {
       console.error('Error loading Airtable data:', error);
-      setAirtableError('Failed to load data from Airtable. Please check your connection.');
+
+      // Provide specific error messages based on the issue
+      let errorMessage = 'Failed to load data from Airtable.';
+
+      if (error.message?.includes('field') || error.message?.includes('Unknown field')) {
+        errorMessage = 'Airtable table field structure incomplete. Please check AIRTABLE_CAMPAIGNS_SETUP.md for setup instructions.';
+      } else if (error.message?.includes('authorized') || error.message?.includes('permission')) {
+        errorMessage = 'Airtable access denied. Check your API key permissions.';
+      } else if (error.message?.includes('table') || error.message?.includes('Could not find')) {
+        errorMessage = 'Campaigns table not found. Please create the required tables in your Airtable base.';
+      } else {
+        errorMessage = 'Failed to load data from Airtable. Please check your connection and table setup.';
+      }
+
+      setAirtableError(errorMessage);
     } finally {
       setIsLoadingAirtable(false);
     }
@@ -293,14 +307,35 @@ export const CampaignManager: React.FC<CampaignManagerProps> = ({
 
       {/* Error Display */}
       {airtableError && (
-        <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
-          ⚠️ {airtableError}
-          <button
-            onClick={loadAirtableData}
-            className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
-          >
-            Retry
-          </button>
+        <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+          <div className="flex items-start space-x-3">
+            <div className="text-red-400 text-lg">⚠️</div>
+            <div className="flex-1">
+              <p className="font-medium">{airtableError}</p>
+              {airtableError.includes('field structure') && (
+                <div className="mt-2 text-sm text-red-300">
+                  <p>The Campaigns table exists but has no fields defined.</p>
+                  <p>See <code className="bg-red-800 px-1 rounded">AIRTABLE_CAMPAIGNS_SETUP.md</code> for setup instructions.</p>
+                </div>
+              )}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={loadAirtableData}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
+                >
+                  Retry
+                </button>
+                {airtableError.includes('field structure') && (
+                  <button
+                    onClick={() => window.open('https://airtable.com/app7oLoqjWJjWlfCq', '_blank')}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
+                  >
+                    Open Airtable Base
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

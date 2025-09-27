@@ -373,12 +373,18 @@ class AirtableService {
    * Get all staff members
    */
   async getStaffMembers(activeOnly: boolean = true): Promise<StaffMember[]> {
-    const filterByFormula = activeOnly ? '{Active} = 1' : '';
+    try {
+      const filterByFormula = activeOnly ? '{Active} = 1' : '';
 
-    return this.getRecords<StaffMember>(AIRTABLE_TABLES.STAFF, {
-      filterByFormula,
-      sort: [{ field: 'Name', direction: 'asc' }]
-    });
+      return this.getRecords<StaffMember>(AIRTABLE_TABLES.STAFF, {
+        filterByFormula,
+        sort: [{ field: 'Name', direction: 'asc' }]
+      });
+    } catch (error) {
+      console.warn('⚠️ Staff table access denied or unavailable:', error.message);
+      // Return empty array to prevent UI crashes
+      return [];
+    }
   }
 
   /**
@@ -473,38 +479,74 @@ class AirtableService {
     projectId?: string;
     limit?: number;
   }): Promise<CampaignRecord[]> {
-    let filterFormula = '';
-    const filters: string[] = [];
+    try {
+      // First, check if the table has any records and field structure
+      const testRecord = await this.base!(AIRTABLE_TABLES.CAMPAIGNS)
+        .select({ maxRecords: 1 })
+        .firstPage();
 
-    if (options?.status && options.status.length > 0) {
-      const statusFilter = options.status.map(s => `{Status} = '${s}'`).join(', ');
-      filters.push(`OR(${statusFilter})`);
+      // If table is empty or has no fields, throw specific error
+      if (testRecord.length === 0 || Object.keys(testRecord[0]?.fields || {}).length === 0) {
+        console.warn('⚠️ Campaigns table exists but has no records or field structure');
+        throw new Error('Campaigns table field structure incomplete. Please add required fields: Title, Description, Status, Priority');
+      }
+
+      // Check if required fields exist
+      const firstRecord = testRecord[0];
+      const hasRequiredFields = ['Title', 'Status'].some(field =>
+        Object.keys(firstRecord.fields).includes(field)
+      );
+
+      if (!hasRequiredFields) {
+        console.warn('⚠️ Campaigns table missing required fields (Title, Status)');
+        throw new Error('Campaigns table field structure incomplete. Missing required fields: Title, Status');
+      }
+
+      // Build filters only if we have proper field structure
+      let filterFormula = '';
+      const filters: string[] = [];
+
+      if (options?.status && options.status.length > 0) {
+        const statusFilter = options.status.map(s => `{Status} = '${s}'`).join(', ');
+        filters.push(`OR(${statusFilter})`);
+      }
+
+      if (options?.assignedTo) {
+        filters.push(`FIND('${options.assignedTo}', ARRAYJOIN({Assigned Staff}, ',')) > 0`);
+      }
+
+      if (options?.clientId) {
+        filters.push(`FIND('${options.clientId}', ARRAYJOIN({Client}, ',')) > 0`);
+      }
+
+      if (options?.projectId) {
+        filters.push(`FIND('${options.projectId}', ARRAYJOIN({Project}, ',')) > 0`);
+      }
+
+      if (filters.length > 0) {
+        filterFormula = filters.length === 1 ? filters[0] : `AND(${filters.join(', ')})`;
+      }
+
+      // Only sort by fields that exist
+      const sortFields = [];
+      if (Object.keys(firstRecord.fields).includes('Priority')) {
+        sortFields.push({ field: 'Priority', direction: 'desc' as const });
+      }
+      if (Object.keys(firstRecord.fields).includes('Due Date')) {
+        sortFields.push({ field: 'Due Date', direction: 'asc' as const });
+      }
+
+      return this.getRecords<CampaignRecord>(AIRTABLE_TABLES.CAMPAIGNS, {
+        filterByFormula: filterFormula,
+        sort: sortFields.length > 0 ? sortFields : undefined,
+        maxRecords: options?.limit || 100
+      });
+
+    } catch (error) {
+      console.error('Error in getCampaigns:', error);
+      // Return empty array instead of throwing error to prevent UI crashes
+      return [];
     }
-
-    if (options?.assignedTo) {
-      filters.push(`FIND('${options.assignedTo}', ARRAYJOIN({Assigned Staff}, ',')) > 0`);
-    }
-
-    if (options?.clientId) {
-      filters.push(`FIND('${options.clientId}', ARRAYJOIN({Client}, ',')) > 0`);
-    }
-
-    if (options?.projectId) {
-      filters.push(`FIND('${options.projectId}', ARRAYJOIN({Project}, ',')) > 0`);
-    }
-
-    if (filters.length > 0) {
-      filterFormula = filters.length === 1 ? filters[0] : `AND(${filters.join(', ')})`;
-    }
-
-    return this.getRecords<CampaignRecord>(AIRTABLE_TABLES.CAMPAIGNS, {
-      filterByFormula: filterFormula,
-      sort: [
-        { field: 'Priority', direction: 'desc' },
-        { field: 'Due Date', direction: 'asc' }
-      ],
-      maxRecords: options?.limit || 100
-    });
   }
 
   /**
@@ -570,30 +612,36 @@ class AirtableService {
     managedBy?: string;
     clientId?: string;
   }): Promise<ProjectRecord[]> {
-    let filterFormula = '';
-    const filters: string[] = [];
+    try {
+      let filterFormula = '';
+      const filters: string[] = [];
 
-    if (options?.status && options.status.length > 0) {
-      const statusFilter = options.status.map(s => `{Status} = '${s}'`).join(', ');
-      filters.push(`OR(${statusFilter})`);
+      if (options?.status && options.status.length > 0) {
+        const statusFilter = options.status.map(s => `{Status} = '${s}'`).join(', ');
+        filters.push(`OR(${statusFilter})`);
+      }
+
+      if (options?.managedBy) {
+        filters.push(`FIND('${options.managedBy}', ARRAYJOIN({Project Manager}, ',')) > 0`);
+      }
+
+      if (options?.clientId) {
+        filters.push(`FIND('${options.clientId}', ARRAYJOIN({Client}, ',')) > 0`);
+      }
+
+      if (filters.length > 0) {
+        filterFormula = filters.length === 1 ? filters[0] : `AND(${filters.join(', ')})`;
+      }
+
+      return this.getRecords<ProjectRecord>(AIRTABLE_TABLES.PROJECTS, {
+        filterByFormula: filterFormula,
+        sort: [{ field: 'Start Date', direction: 'desc' }]
+      });
+    } catch (error) {
+      console.warn('⚠️ Projects table access error:', error.message);
+      // Return empty array to prevent UI crashes
+      return [];
     }
-
-    if (options?.managedBy) {
-      filters.push(`FIND('${options.managedBy}', ARRAYJOIN({Project Manager}, ',')) > 0`);
-    }
-
-    if (options?.clientId) {
-      filters.push(`FIND('${options.clientId}', ARRAYJOIN({Client}, ',')) > 0`);
-    }
-
-    if (filters.length > 0) {
-      filterFormula = filters.length === 1 ? filters[0] : `AND(${filters.join(', ')})`;
-    }
-
-    return this.getRecords<ProjectRecord>(AIRTABLE_TABLES.PROJECTS, {
-      filterByFormula: filterFormula,
-      sort: [{ field: 'Start Date', direction: 'desc' }]
-    });
   }
 
   // CLIENT MANAGEMENT METHODS
