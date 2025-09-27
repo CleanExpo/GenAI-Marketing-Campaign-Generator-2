@@ -9,6 +9,10 @@ import { CampaignStorageService } from './services/campaignStorage';
 import { BrandKitService, BrandKit } from './services/brandKitService';
 import { CRMIntegrationService, CRMSyncResult, CRMConnection } from './services/crmIntegration';
 
+// Import security components
+import SecureInput, { SecureURLInput, SecureEmailInput } from './components/SecureInput';
+import { SecurityService } from './services/securityService';
+
 // New comprehensive Airtable integration imports
 import { useAuth, authService } from './services/authService';
 import { airtableService, initializeAirtable } from './services/airtableService';
@@ -44,6 +48,11 @@ const App: React.FC = () => {
     const [results, setResults] = useState<CampaignResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+    // Security and validation state
+    const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+    const [isFormValid, setIsFormValid] = useState<boolean>(false);
+    const [csrfToken, setCsrfToken] = useState<string>('');
 
     // Navigation state for new components
     const [activeView, setActiveView] = useState<'generator' | 'staff' | 'projects' | 'campaigns'>('generator');
@@ -130,6 +139,30 @@ const App: React.FC = () => {
             }
         };
     }, []); // Empty dependency array for mount/unmount only
+
+    // Initialize security features
+    useEffect(() => {
+        // Initialize CSRF token
+        const token = SecurityService.generateCSRFToken();
+        setCsrfToken(token);
+    }, []);
+
+    // Validation helper functions
+    const handleValidationChange = (field: string, isValid: boolean, errors: string[]) => {
+        setValidationErrors(prev => ({
+            ...prev,
+            [field]: errors
+        }));
+
+        // Update overall form validity
+        const allErrors = { ...validationErrors, [field]: errors };
+        const hasErrors = Object.values(allErrors).some(errorList => errorList.length > 0);
+        setIsFormValid(!hasErrors && productDescription.trim().length > 0);
+    };
+
+    const sanitizeUserInput = (input: string): string => {
+        return SecurityService.sanitizeInput(input);
+    };
 
     // Initialize CRM connection status and Airtable service on component mount
     useEffect(() => {
@@ -242,11 +275,33 @@ const App: React.FC = () => {
             setError("Please enter a product description.");
             return;
         }
+
+        // Validate form before generation
+        if (!isFormValid) {
+            setError("Please fix validation errors before generating campaign.");
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
         setResults(null);
         try {
-            const campaignResults = await generateMarketingCampaign(productDescription, generateMedia, advancedSettings);
+            // Sanitize all inputs before sending to AI service
+            const sanitizedProductDescription = sanitizeUserInput(productDescription);
+            const sanitizedSettings = {
+                ...advancedSettings,
+                companyName: sanitizeUserInput(advancedSettings.companyName),
+                companyWebsite: SecurityService.validateURL(advancedSettings.companyWebsite) ? advancedSettings.companyWebsite : '',
+                socialMediaLinks: advancedSettings.socialMediaLinks.map(link => ({
+                    platform: sanitizeUserInput(link.platform),
+                    url: SecurityService.validateURL(link.url) ? link.url : ''
+                })),
+                competitorWebsites: advancedSettings.competitorWebsites
+                    .filter(comp => SecurityService.validateURL(comp.url))
+                    .map(comp => ({ url: comp.url }))
+            };
+
+            const campaignResults = await generateMarketingCampaign(sanitizedProductDescription, generateMedia, sanitizedSettings);
             setResults(campaignResults);
 
             // Auto-sync with CRM if user has an active connection and current campaign exists
@@ -642,13 +697,16 @@ const App: React.FC = () => {
                                 <label htmlFor="productDescription" className="block text-lg font-medium text-slate-300 mb-2">
                                     Describe your product, service, or idea
                             </label>
-                            <textarea
-                                id="productDescription"
+                            <SecureInput
                                 value={productDescription}
-                                onChange={(e) => setProductDescription(e.target.value)}
-                                className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-base"
+                                onChange={setProductDescription}
+                                type="textarea"
                                 placeholder="e.g., A subscription box for artisanal coffee from around the world."
-                                rows={4}
+                                className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors text-base"
+                                maxLength={5000}
+                                required={true}
+                                onValidationChange={(isValid, errors) => handleValidationChange('productDescription', isValid, errors)}
+                                sanitizeOnBlur={true}
                             />
                             <button onClick={handleInspirationClick} className="text-sm text-cyan-400 hover:text-cyan-300 mt-2">
                                 ✨ Get Inspired
@@ -681,8 +739,23 @@ const App: React.FC = () => {
                                     <div>
                                         <h4 className={formLabelClass}>Branding Context</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                            <input type="text" placeholder="Company Name" value={advancedSettings.companyName} onChange={e => handleSettingChange('companyName', e.target.value)} className={formInputClass} />
-                                            <input type="url" placeholder="Company Website (for style analysis)" value={advancedSettings.companyWebsite} onChange={e => handleSettingChange('companyWebsite', e.target.value)} className={formInputClass} />
+                                            <SecureInput
+                                                value={advancedSettings.companyName}
+                                                onChange={(value) => handleSettingChange('companyName', value)}
+                                                placeholder="Company Name"
+                                                className={formInputClass}
+                                                maxLength={200}
+                                                onValidationChange={(isValid, errors) => handleValidationChange('companyName', isValid, errors)}
+                                                sanitizeOnBlur={true}
+                                            />
+                                            <SecureURLInput
+                                                value={advancedSettings.companyWebsite}
+                                                onChange={(value) => handleSettingChange('companyWebsite', value)}
+                                                placeholder="Company Website (for style analysis)"
+                                                className={formInputClass}
+                                                maxLength={500}
+                                                onValidationChange={(isValid, errors) => handleValidationChange('companyWebsite', isValid, errors)}
+                                            />
                                             <div>
                                                 <label htmlFor="primaryColor" className="block text-xs text-slate-400 mb-1">Primary Brand Color</label>
                                                 <input
@@ -738,8 +811,22 @@ const App: React.FC = () => {
                                         <h4 className={formLabelClass}>Social Media Links</h4>
                                         {advancedSettings.socialMediaLinks.map((link, index) => (
                                             <div key={index} className="flex items-center gap-2 mb-2">
-                                                <input type="text" placeholder="Platform (e.g., Instagram)" value={link.platform} onChange={e => handleSocialLinkChange(index, 'platform', e.target.value)} className={`${formInputClass} flex-1`} />
-                                                <input type="url" placeholder="URL" value={link.url} onChange={e => handleSocialLinkChange(index, 'url', e.target.value)} className={`${formInputClass} flex-grow-[2]`} />
+                                                <SecureInput
+                                                    value={link.platform}
+                                                    onChange={(value) => handleSocialLinkChange(index, 'platform', value)}
+                                                    placeholder="Platform (e.g., Instagram)"
+                                                    className={`${formInputClass} flex-1`}
+                                                    maxLength={50}
+                                                    onValidationChange={(isValid, errors) => handleValidationChange(`socialPlatform_${index}`, isValid, errors)}
+                                                />
+                                                <SecureURLInput
+                                                    value={link.url}
+                                                    onChange={(value) => handleSocialLinkChange(index, 'url', value)}
+                                                    placeholder="URL"
+                                                    className={`${formInputClass} flex-grow-[2]`}
+                                                    maxLength={500}
+                                                    onValidationChange={(isValid, errors) => handleValidationChange(`socialUrl_${index}`, isValid, errors)}
+                                                />
                                                 <button onClick={() => removeSocialLink(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
                                             </div>
                                         ))}
@@ -781,7 +868,14 @@ const App: React.FC = () => {
                                         </div>
                                          {advancedSettings.competitorWebsites.map((comp, index) => (
                                             <div key={index} className="flex items-center gap-2 mb-2">
-                                                <input type="url" placeholder="https://competitor.com" value={comp.url} onChange={e => handleCompetitorChange(index, e.target.value)} className={`${formInputClass} flex-1`} />
+                                                <SecureURLInput
+                                                    value={comp.url}
+                                                    onChange={(value) => handleCompetitorChange(index, value)}
+                                                    placeholder="https://competitor.com"
+                                                    className={`${formInputClass} flex-1`}
+                                                    maxLength={500}
+                                                    onValidationChange={(isValid, errors) => handleValidationChange(`competitor_${index}`, isValid, errors)}
+                                                />
                                                 <button onClick={() => removeCompetitor(index)} className="p-2 text-slate-400 hover:text-red-400"><TrashIcon className="h-5 w-5" /></button>
                                             </div>
                                         ))}
@@ -872,7 +966,7 @@ const App: React.FC = () => {
                     <div className="mt-6">
                         <button
                             onClick={handleGenerate}
-                            disabled={isLoading || !productDescription.trim()}
+                            disabled={isLoading || !productDescription.trim() || !isFormValid}
                             className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center text-lg"
                         >
                             {isLoading ? (
