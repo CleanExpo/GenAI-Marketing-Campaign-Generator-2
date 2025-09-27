@@ -85,12 +85,12 @@ export const useComponentPreloader = (enabled: boolean = true) => {
 
   const preloadPDFLibrary = useCallback(async () => {
     try {
-      // Preload jsPDF for export functionality
+      // Temporarily disabled jsPDF preloading to resolve deployment issues
       if (!preloadCache.has('jsPDF')) {
-        const promise = import('jspdf');
+        const promise = Promise.resolve();
         preloadCache.set('jsPDF', promise);
         await promise;
-        console.log('✅ Preloaded PDF library');
+        console.log('⚠️ PDF library temporarily disabled');
       }
     } catch (error) {
       console.warn('Failed to preload PDF library:', error);

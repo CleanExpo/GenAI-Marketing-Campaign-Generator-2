@@ -25,16 +25,12 @@ class PDFLibLoader {
     }
 
     this.isLoading = true;
-    this.loadingPromise = import('jspdf')
-      .then((module) => {
-        this.instance = module.jsPDF;
-        this.isLoading = false;
-        return this.instance;
-      })
+    // Temporarily disabled jsPDF to resolve deployment issues
+    this.loadingPromise = Promise.reject(new Error('PDF export temporarily disabled'))
       .catch((error) => {
         this.isLoading = false;
         this.loadingPromise = null;
-        throw new Error(`Failed to load PDF library: ${error.message}`);
+        throw new Error(`PDF export temporarily disabled: ${error.message}`);
       });
 
     return this.loadingPromise;
