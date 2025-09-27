@@ -60,6 +60,8 @@ npm install
 
 **Note**: No test runner, linting, or formatting scripts are configured. The project uses Vite's built-in TypeScript checking.
 
+**Agent-Driven Development**: Use the Campaign Orchestrator agent for comprehensive testing and issue resolution. Deploy specialized agents in parallel for complex operations.
+
 ## Environment Setup
 
 **Required Environment Variables**:
@@ -190,9 +192,48 @@ When modifying AI features:
 4. Handle API errors gracefully with user feedback
 5. Test with various setting combinations to ensure schema consistency
 
+## Agent-Driven Testing & Issue Resolution Protocol
+
+**PRIMARY WORKFLOW**: Use Campaign Orchestrator as the main coordination agent for all comprehensive testing, issue resolution, and development tasks.
+
+### Campaign Orchestrator Usage
+
+**For Comprehensive Issue Resolution**:
+```bash
+# Use Campaign Orchestrator to coordinate full application testing
+Task(campaign-orchestrator): "Perform comprehensive application audit including CRM integration, Staff table issues, and deployment verification"
+```
+
+**For Development Tasks**:
+```bash
+# Multi-agent coordination for complex features
+Task(campaign-orchestrator): "Implement new feature with SEO optimization, content refinement, and deployment pipeline"
+```
+
+**For Parallel Problem Solving**:
+```bash
+# Deploy multiple specialized agents simultaneously
+Task(campaign-orchestrator, semrush-api-connector, code-integrity-enforcer): "Resolve Staff table 403 errors, optimize SEO integration, and ensure code quality"
+```
+
+### Specialized Agent Protocols
+
+**Technical Issues**: `code-integrity-enforcer` → TDD implementation, bug fixes, commit preparation
+**SEO & Analytics**: `semrush-api-connector` + `seo-lighthouse-auditor` → Performance optimization
+**Content Creation**: `content-refiner` + `google-creative-asset-generator` → Marketing asset generation
+**Deployment**: `deployment-pipeline-engineer` → Vercel management, environment validation
+**Data Persistence**: `airtable-data-logger` → CRM integration, campaign storage
+
+### Current Priority Issues (Agent Assignment)
+
+1. **Staff Table 403 Errors**: `campaign-orchestrator` + `airtable-data-logger` + `code-integrity-enforcer`
+2. **CRM Integration Testing**: `campaign-orchestrator` + `airtable-data-logger`
+3. **Deployment Verification**: `deployment-pipeline-engineer` + `seo-lighthouse-auditor`
+4. **Performance Optimization**: `trend-algorithm-auditor` + `semrush-api-connector`
+
 ## Deployment Verification Protocol
 
-**MANDATORY**: After every Vercel deployment, use Playwright MCP to verify the application is working correctly.
+**MANDATORY**: After every Vercel deployment, use Campaign Orchestrator to coordinate verification with deployment-pipeline-engineer and seo-lighthouse-auditor.
 
 ### Required Testing Steps
 
@@ -300,6 +341,47 @@ The application includes optional SEMrush API integration for enhanced competito
 - `CRMIntegrationService.syncCampaign(campaign)` - Sync campaign to CRM
 - `CRMIntegrationService.getConnections()` - Get all connections
 - `CRMIntegrationService.deleteConnection(id)` - Remove connection
+
+## Agent Integration Architecture (Latest)
+
+**Specialized Agent System**: The application now uses Campaign Orchestrator as the main coordination agent with 9 specialized agents for comprehensive testing, development, and issue resolution:
+
+**Primary Coordination Agent**:
+- **campaign-orchestrator**: Main orchestrator for multi-platform marketing campaign generation, coordinating research, content creation, and deployment workflows
+
+**Specialized Agents**:
+- **semrush-api-connector**: SEO data fetching, keyword research, and competitive analysis
+- **trend-algorithm-auditor**: Real-time competitive analysis and algorithm compliance auditing
+- **content-refiner**: Marketing copy refinement using Hemingway Style principles
+- **seo-lighthouse-auditor**: Technical SEO audits and Lighthouse-style scoring
+- **google-creative-asset-generator**: Visual content creation using Google's Imagen and Veo models
+- **code-integrity-enforcer**: Code quality assurance, TDD implementation, and commit preparation
+- **deployment-pipeline-engineer**: Vercel deployment management and environment validation
+- **airtable-data-logger**: Campaign data persistence and CRM integration logging
+
+**Agent Workflow Pattern**:
+1. **Campaign Orchestrator** coordinates the complete workflow
+2. **Parallel-R1 Execution**: Multiple agents work simultaneously for optimal performance
+3. **MCP Integration**: Agents leverage Model Context Protocol for enhanced functionality
+4. **Issue Resolution**: Specialized agents handle specific technical domains
+
+**Usage Protocol**:
+- Use Campaign Orchestrator for comprehensive campaign generation and testing
+- Deploy agents in parallel for complex multi-step operations
+- Leverage specialized agents for domain-specific issues (SEO, deployment, code quality)
+- All agents integrate with existing Airtable CRM and Vercel deployment infrastructure
+
+**Quick Agent Commands**:
+```bash
+# Comprehensive application audit
+Task(campaign-orchestrator): "Perform full application testing and issue resolution"
+
+# Parallel development workflow
+Task(campaign-orchestrator, code-integrity-enforcer, deployment-pipeline-engineer): "Implement feature with testing and deployment"
+
+# CRM integration troubleshooting
+Task(airtable-data-logger, campaign-orchestrator): "Resolve Airtable Staff table 403 errors"
+```
 
 ## CRM Integration Architecture
 

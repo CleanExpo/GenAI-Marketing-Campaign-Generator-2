@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@google/genai": "^1.20.0",
     "@vercel/node": "^5.3.24",
     "airtable": "^0.12.2",
