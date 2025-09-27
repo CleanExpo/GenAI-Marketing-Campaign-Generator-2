@@ -663,7 +663,7 @@ const App: React.FC = () => {
 
     // Update SEO when campaign is generated
     useEffect(() => {
-        if (result) {
+        if (results) {
             const campaignSEO = seoService.generateCampaignSEO({
                 productName: productDescription.split(' ').slice(0, 3).join(' '), // First 3 words as product name
                 targetAudience: advancedSettings.targetAudience,
@@ -674,12 +674,12 @@ const App: React.FC = () => {
             // Add campaign structured data
             seoService.addCampaignStructuredData({
                 name: `Marketing Campaign for ${productDescription.slice(0, 50)}...`,
-                description: result.content?.overview || 'AI-generated marketing campaign',
+                description: results.content?.overview || 'AI-generated marketing campaign',
                 dateCreated: new Date().toISOString(),
                 targetAudience: advancedSettings.targetAudience
             });
         }
-    }, [result, productDescription, advancedSettings.targetAudience]);
+    }, [results, productDescription, advancedSettings.targetAudience]);
 
     return (
         <div className="bg-slate-900 text-white min-h-screen font-sans">
