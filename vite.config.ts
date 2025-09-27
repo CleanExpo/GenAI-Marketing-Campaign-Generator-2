@@ -12,7 +12,7 @@ export default defineConfig({
     target: 'es2020',
     minify: 'esbuild',
     rollupOptions: {
-      external: ['@vercel/node'],
+      external: ['@vercel/node', 'html2canvas', 'dompurify', 'canvg'],
       output: {
         entryFileNames: 'js/[name]-[hash].js',
         chunkFileNames: 'js/[name]-[hash].js',
