@@ -10,13 +10,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     target: 'es2020',
-    minify: 'esbuild',
-    rollupOptions: {
-      // Exclude platform-specific dependencies
-      external: (id) => {
-        return id.includes('@rollup/rollup-') || id.includes('rollup-linux') || id.includes('rollup-win32');
-      }
-    }
+    minify: 'esbuild'
   },
   server: {
     port: 3000,
@@ -28,8 +22,5 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/airtable/, ''),
       }
     }
-  },
-  optimizeDeps: {
-    exclude: ['@rollup/rollup-linux-x64-gnu', '@rollup/rollup-win32-x64-msvc']
   }
 });
