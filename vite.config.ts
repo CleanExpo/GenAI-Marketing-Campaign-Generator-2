@@ -4,12 +4,22 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(() => {
     return {
       plugins: [react()],
+      define: {
+        global: 'globalThis',
+      },
+      resolve: {
+        alias: {
+          // Prevent Node.js modules from being bundled
+          '@vercel/node': false,
+        }
+      },
       build: {
         outDir: 'dist',
         assetsDir: 'assets',
         sourcemap: false,
         chunkSizeWarningLimit: 1000,
         rollupOptions: {
+          external: ['@vercel/node'],
           output: {
             manualChunks: {
               // React and React DOM in their own chunk
@@ -21,8 +31,8 @@ export default defineConfig(() => {
               // Large third-party libraries
               'pdf-vendor': ['jspdf'],
 
-              // CRM and Airtable services
-              'crm-vendor': ['airtable', '@vercel/node'],
+              // CRM and Airtable services (browser-safe only)
+              'crm-vendor': ['airtable'],
 
               // Components - split by feature area
               'campaign-components': [
