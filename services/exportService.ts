@@ -179,6 +179,10 @@ export class ExportService {
     const fileName = options.customFileName ||
       ('name' in campaign ? `${campaign.name.replace(/\s+/g, '_')}_Campaign.pdf` : 'Marketing_Campaign.pdf');
     doc.save(fileName);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      throw error;
+    }
   }
 
   static exportToCSV(campaign: SavedCampaign | CampaignResult, options: ExportOptions = {}): void {

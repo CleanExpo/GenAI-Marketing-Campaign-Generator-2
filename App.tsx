@@ -20,7 +20,7 @@ import { CRMIntegrationService, CRMSyncResult, CRMConnection } from './services/
 
 // Import security components
 import SecureInput, { SecureURLInput, SecureEmailInput } from './components/SecureInput';
-import { SecurityService } from './services/securityService';
+import { SecurityServiceAPI } from './services/securityService';
 
 // New comprehensive Airtable integration imports
 import { useAuth, authService } from './services/authService';
@@ -282,7 +282,7 @@ const App: React.FC = () => {
     // Initialize security features
     useEffect(() => {
         // Initialize CSRF token
-        const token = SecurityService.generateCSRFToken();
+        const token = SecurityServiceAPI.generateCSRFToken();
         setCsrfToken(token);
     }, []);
 
@@ -300,7 +300,7 @@ const App: React.FC = () => {
     };
 
     const sanitizeUserInput = (input: string): string => {
-        return SecurityService.sanitizeInput(input);
+        return SecurityServiceAPI.sanitizeInput(input);
     };
 
     // Initialize CRM connection status and Airtable service on component mount
@@ -430,13 +430,13 @@ const App: React.FC = () => {
             const sanitizedSettings = {
                 ...advancedSettings,
                 companyName: sanitizeUserInput(advancedSettings.companyName),
-                companyWebsite: SecurityService.validateURL(advancedSettings.companyWebsite) ? advancedSettings.companyWebsite : '',
+                companyWebsite: SecurityServiceAPI.validateURL(advancedSettings.companyWebsite) ? advancedSettings.companyWebsite : '',
                 socialMediaLinks: advancedSettings.socialMediaLinks.map(link => ({
                     platform: sanitizeUserInput(link.platform),
-                    url: SecurityService.validateURL(link.url) ? link.url : ''
+                    url: SecurityServiceAPI.validateURL(link.url) ? link.url : ''
                 })),
                 competitorWebsites: advancedSettings.competitorWebsites
-                    .filter(comp => SecurityService.validateURL(comp.url))
+                    .filter(comp => SecurityServiceAPI.validateURL(comp.url))
                     .map(comp => ({ url: comp.url }))
             };
 

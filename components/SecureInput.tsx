@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { SecurityService } from '../services/securityService';
+import { SecurityServiceAPI } from '../services/securityService';
 
 interface SecureInputProps {
   value: string;
@@ -53,26 +53,26 @@ export const SecureInput: React.FC<SecureInputProps> = ({
     }
 
     // Length validation
-    if (!SecurityService.validateInputLength(inputValue, maxLength)) {
+    if (!SecurityServiceAPI.validateInputLength(inputValue, maxLength)) {
       validationErrors.push(`Input must be ${maxLength} characters or less`);
     }
 
     // Type-specific validation
     switch (type) {
       case 'email':
-        if (inputValue && !SecurityService.validateEmail(inputValue)) {
+        if (inputValue && !SecurityServiceAPI.validateEmail(inputValue)) {
           validationErrors.push('Please enter a valid email address');
         }
         break;
       case 'url':
-        if (inputValue && !SecurityService.validateURL(inputValue)) {
+        if (inputValue && !SecurityServiceAPI.validateURL(inputValue)) {
           validationErrors.push('Please enter a valid URL (http:// or https://)');
         }
         break;
     }
 
     // General input validation (SQL injection, etc.)
-    if (inputValue && !SecurityService.validateInput(inputValue)) {
+    if (inputValue && !SecurityServiceAPI.validateInput(inputValue)) {
       validationErrors.push('Input contains invalid characters or patterns');
     }
 
@@ -113,7 +113,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
     setIsFocused(false);
 
     if (sanitizeOnBlur && displayValue) {
-      const sanitized = SecurityService.sanitizeInput(displayValue);
+      const sanitized = SecurityServiceAPI.sanitizeInput(displayValue);
 
       if (sanitized !== displayValue) {
         setDisplayValue(sanitized);
@@ -191,7 +191,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
   const renderSecurityIndicator = () => {
     if (!displayValue) return null;
 
-    const hasBeenSanitized = SecurityService.sanitizeInput(displayValue) !== displayValue;
+    const hasBeenSanitized = SecurityServiceAPI.sanitizeInput(displayValue) !== displayValue;
 
     return (
       <div className="mt-1 flex items-center justify-between">
