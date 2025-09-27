@@ -3,7 +3,7 @@
  * Provides comprehensive accessibility utilities and ARIA management
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 interface UseAccessibilityOptions {
   announcePageChanges?: boolean;

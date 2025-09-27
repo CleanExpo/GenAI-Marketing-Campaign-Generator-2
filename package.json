@@ -25,6 +25,7 @@
     "@babel/core": "^7.28.4",
     "@babel/preset-env": "^7.28.3",
     "@babel/preset-react": "^7.27.1",
+    "@rollup/rollup-win32-x64-msvc": "^4.52.3",
     "@types/jest": "^29.5.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.2.66",

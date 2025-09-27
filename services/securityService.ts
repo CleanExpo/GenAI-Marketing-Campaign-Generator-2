@@ -301,7 +301,7 @@ class SecurityService {
 export const securityService = new SecurityService();
 
 // Named exports for specific functions
-export const SecurityService = {
+export const SecurityServiceAPI = {
   sanitizeInput: (input: string | null | undefined) => securityService.sanitizeInput(input),
   validateURL: (url: string) => securityService.validateURL(url),
   validateEmail: (email: string) => securityService.validateEmail(email),
