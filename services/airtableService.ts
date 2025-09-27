@@ -197,12 +197,37 @@ class AirtableService {
     }
 
     try {
-      // Try to fetch one record from Staff table to test connection
-      await this.base(AIRTABLE_TABLES.STAFF)
-        .select({ maxRecords: 1 })
-        .firstPage();
+      // Try to access the base by attempting to list tables (most permissive test)
+      // If no specific table exists, try common table names in order of preference
+      const testTables = ['Staff', 'Campaigns', 'Projects', 'Clients', 'Table1', 'Table 1'];
+
+      let connectionSuccess = false;
+      let lastError = null;
+
+      for (const tableName of testTables) {
+        try {
+          await this.base(tableName)
+            .select({ maxRecords: 1 })
+            .firstPage();
+          connectionSuccess = true;
+          console.log(`✅ Airtable connection verified using table: ${tableName}`);
+          break;
+        } catch (error) {
+          lastError = error;
+          console.log(`⚠️ Table '${tableName}' not accessible, trying next...`);
+          continue;
+        }
+      }
+
+      if (!connectionSuccess) {
+        console.error('❌ No accessible tables found in base');
+        throw new Error(`Connection test failed - no accessible tables found. Last error: ${lastError?.message || 'Unknown error'}`);
+      }
     } catch (error) {
-      throw new Error('Connection test failed - check API key and base ID');
+      if (error.message.includes('Connection test failed')) {
+        throw error;
+      }
+      throw new Error(`Connection test failed - check API key and base ID. Error: ${error.message}`);
     }
   }
 
