@@ -31,9 +31,6 @@ export default defineConfig(() => {
               // Large third-party libraries
               'pdf-vendor': ['jspdf'],
 
-              // CRM and Airtable services (browser-safe only)
-              'crm-vendor': ['airtable'],
-
               // Components - split by feature area
               'campaign-components': [
                 './components/CampaignManager',

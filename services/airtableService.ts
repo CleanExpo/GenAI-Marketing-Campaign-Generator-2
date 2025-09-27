@@ -1,9 +1,8 @@
 /**
  * Comprehensive Airtable Service
+ * Browser-compatible implementation using fetch API
  * Handles all Airtable operations with staff accountability and project management
  */
-
-import Airtable from 'airtable';
 
 // Core interfaces for Airtable integration
 export interface AirtableConfig {
@@ -145,11 +144,11 @@ export const AIRTABLE_TABLES = {
 
 class AirtableService {
   private static instance: AirtableService;
-  private base: Airtable.Base | null = null;
   private config: AirtableConfig | null = null;
   private rateLimitQueue: Promise<any>[] = [];
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 200; // 5 requests per second max
+  private readonly API_BASE_URL = 'https://api.airtable.com/v0';
 
   private constructor() {}
 
@@ -171,13 +170,6 @@ class AirtableService {
         ...config
       };
 
-      Airtable.configure({
-        endpointUrl: 'https://api.airtable.com',
-        apiKey: config.apiKey
-      });
-
-      this.base = Airtable.base(config.baseId);
-
       // Test connection
       await this.testConnection();
 
@@ -192,7 +184,7 @@ class AirtableService {
    * Test Airtable connection
    */
   private async testConnection(): Promise<void> {
-    if (!this.base) {
+    if (!this.config) {
       throw new Error('Airtable not initialized');
     }
 
@@ -206,9 +198,13 @@ class AirtableService {
 
       for (const tableName of testTables) {
         try {
-          await this.base(tableName)
-            .select({ maxRecords: 1 })
-            .firstPage();
+          const response = await this.makeRequest(
+            `/${this.config.baseId}/${encodeURIComponent(tableName)}`,
+            'GET',
+            undefined,
+            { maxRecords: 1 }
+          );
+
           connectionSuccess = true;
           console.log(`✅ Airtable connection verified using table: ${tableName}`);
           break;
@@ -248,21 +244,88 @@ class AirtableService {
   }
 
   /**
+   * Make HTTP request to Airtable API
+   */
+  private async makeRequest(
+    path: string,
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    body?: any,
+    queryParams?: Record<string, any>
+  ): Promise<any> {
+    if (!this.config) {
+      throw new Error('Airtable not initialized');
+    }
+
+    await this.enforceRateLimit();
+
+    const url = new URL(`${this.API_BASE_URL}${path}`);
+
+    // Add query parameters
+    if (queryParams) {
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+
+    const headers: HeadersInit = {
+      'Authorization': `Bearer ${this.config.apiKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    const requestInit: RequestInit = {
+      method,
+      headers,
+    };
+
+    if (body && (method === 'POST' || method === 'PATCH')) {
+      requestInit.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url.toString(), requestInit);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error && errorData.error.message) {
+          errorMessage = errorData.error.message;
+        }
+      } catch {
+        // Use the raw error text if JSON parsing fails
+        errorMessage = errorText || errorMessage;
+      }
+
+      const error = new Error(errorMessage) as any;
+      error.statusCode = response.status;
+      throw error;
+    }
+
+    return response.json();
+  }
+
+  /**
    * Generic record creation with retry logic
    */
   private async createRecord<T>(tableName: string, fields: any, retries = 0): Promise<T> {
-    if (!this.base) {
+    if (!this.config) {
       throw new Error('Airtable not initialized');
     }
 
     try {
-      await this.enforceRateLimit();
+      const response = await this.makeRequest(
+        `/${this.config.baseId}/${encodeURIComponent(tableName)}`,
+        'POST',
+        { fields }
+      );
 
-      const record = await this.base(tableName).create(fields);
       return {
-        id: record.id,
-        ...record.fields,
-        createdAt: record.get('Created') || new Date()
+        id: response.id,
+        ...response.fields,
+        createdAt: response.createdTime ? new Date(response.createdTime) : new Date()
       } as T;
 
     } catch (error: any) {
@@ -279,17 +342,20 @@ class AirtableService {
    * Generic record update with retry logic
    */
   private async updateRecord<T>(tableName: string, recordId: string, fields: any, retries = 0): Promise<T> {
-    if (!this.base) {
+    if (!this.config) {
       throw new Error('Airtable not initialized');
     }
 
     try {
-      await this.enforceRateLimit();
+      const response = await this.makeRequest(
+        `/${this.config.baseId}/${encodeURIComponent(tableName)}/${recordId}`,
+        'PATCH',
+        { fields }
+      );
 
-      const record = await this.base(tableName).update(recordId, fields);
       return {
-        id: record.id,
-        ...record.fields,
+        id: response.id,
+        ...response.fields,
         updatedAt: new Date()
       } as T;
 
@@ -315,20 +381,41 @@ class AirtableService {
       fields?: string[];
     }
   ): Promise<T[]> {
-    if (!this.base) {
+    if (!this.config) {
       throw new Error('Airtable not initialized');
     }
 
     try {
-      await this.enforceRateLimit();
+      const queryParams: Record<string, any> = {};
 
-      const records = await this.base(tableName).select(options || {}).all();
+      if (options?.filterByFormula) {
+        queryParams.filterByFormula = options.filterByFormula;
+      }
+      if (options?.maxRecords) {
+        queryParams.maxRecords = options.maxRecords;
+      }
+      if (options?.fields) {
+        queryParams.fields = options.fields;
+      }
+      if (options?.sort) {
+        options.sort.forEach((sortOption, index) => {
+          queryParams[`sort[${index}][field]`] = sortOption.field;
+          queryParams[`sort[${index}][direction]`] = sortOption.direction;
+        });
+      }
 
-      return records.map(record => ({
+      const response = await this.makeRequest(
+        `/${this.config.baseId}/${encodeURIComponent(tableName)}`,
+        'GET',
+        undefined,
+        queryParams
+      );
+
+      return response.records.map((record: any) => ({
         id: record.id,
         ...record.fields,
-        createdAt: record.get('Created') || new Date(),
-        updatedAt: record.get('Last Modified') || new Date()
+        createdAt: record.createdTime ? new Date(record.createdTime) : new Date(),
+        updatedAt: new Date()
       })) as T[];
 
     } catch (error) {
@@ -481,9 +568,13 @@ class AirtableService {
   }): Promise<CampaignRecord[]> {
     try {
       // First, check if the table has any records and field structure
-      const testRecord = await this.base!(AIRTABLE_TABLES.CAMPAIGNS)
-        .select({ maxRecords: 1 })
-        .firstPage();
+      const testResponse = await this.makeRequest(
+        `/${this.config!.baseId}/${encodeURIComponent(AIRTABLE_TABLES.CAMPAIGNS)}`,
+        'GET',
+        undefined,
+        { maxRecords: 1 }
+      );
+      const testRecord = testResponse.records;
 
       // If table is empty or has no fields, throw specific error
       if (testRecord.length === 0 || Object.keys(testRecord[0]?.fields || {}).length === 0) {
