@@ -1,11 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { generateMarketingCampaign } from './services/geminiService';
 import { CampaignResult, AdvancedSettings, SavedCampaign, CampaignTemplate } from './types';
 import { ResultsDisplay } from './components/ResultsDisplay';
-import { CampaignManager } from './components/CampaignManager';
-import { ExportManager } from './components/ExportManager';
-import { BrandKitManager } from './components/BrandKitManager';
-import { CRMManager } from './components/CRMManager';
 import { LoadingSpinner, ChevronDownIcon, TrashIcon } from './components/icons';
 import { INSPIRATION_PROMPTS, NATIONAL_LANGUAGES, TARGET_PLATFORMS, ARTISTIC_STYLES } from './constants';
 import { isSEMrushAvailable } from './services/semrushService';
@@ -16,8 +12,24 @@ import { CRMIntegrationService, CRMSyncResult, CRMConnection } from './services/
 // New comprehensive Airtable integration imports
 import { useAuth, authService } from './services/authService';
 import { airtableService, initializeAirtable } from './services/airtableService';
-import StaffManager from './components/StaffManager';
-import ProjectManager from './components/ProjectManager';
+
+// Lazy load heavy components for better performance
+const CampaignManager = lazy(() => import('./components/CampaignManager').then(module => ({ default: module.CampaignManager })));
+const ExportManager = lazy(() => import('./components/ExportManager').then(module => ({ default: module.ExportManager })));
+const BrandKitManager = lazy(() => import('./components/BrandKitManager').then(module => ({ default: module.BrandKitManager })));
+const CRMManager = lazy(() => import('./components/CRMManager').then(module => ({ default: module.CRMManager })));
+const StaffManager = lazy(() => import('./components/StaffManager'));
+const ProjectManager = lazy(() => import('./components/ProjectManager'));
+
+// Loading component for Suspense fallbacks
+const ComponentLoader: React.FC<{ message?: string }> = ({ message = "Loading component..." }) => (
+    <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-3"></div>
+            <p className="text-slate-400 text-sm">{message}</p>
+        </div>
+    </div>
+);
 
 const App: React.FC = () => {
     // Authentication state
@@ -882,17 +894,19 @@ const App: React.FC = () => {
                         {/* Campaign Manager - Legacy for backward compatibility */}
                         {showCampaignManager && (
                             <div className="mt-8">
-                                <CampaignManager
-                                    onLoadCampaign={handleLoadCampaign}
-                                    onUseTemplate={handleUseTemplate}
-                                    currentCampaign={currentCampaign}
-                                    onSaveCurrent={handleSaveCurrent}
-                                    resultsExist={!!results}
-                                    hasUnsavedResults={!!results && (!currentCampaign ||
-                                        (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
-                                    )}
-                                    currentCampaignData={results}
-                                />
+                                <Suspense fallback={<ComponentLoader message="Loading campaign manager..." />}>
+                                    <CampaignManager
+                                        onLoadCampaign={handleLoadCampaign}
+                                        onUseTemplate={handleUseTemplate}
+                                        currentCampaign={currentCampaign}
+                                        onSaveCurrent={handleSaveCurrent}
+                                        resultsExist={!!results}
+                                        hasUnsavedResults={!!results && (!currentCampaign ||
+                                            (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                        )}
+                                        currentCampaignData={results}
+                                    />
+                                </Suspense>
                             </div>
                         )}
                     </>
@@ -913,7 +927,9 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <StaffManager currentUserId={user?.id} />
+                            <Suspense fallback={<ComponentLoader message="Loading team manager..." />}>
+                                <StaffManager currentUserId={user?.id} />
+                            </Suspense>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -940,7 +956,9 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <ProjectManager />
+                            <Suspense fallback={<ComponentLoader message="Loading project manager..." />}>
+                                <ProjectManager />
+                            </Suspense>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -967,20 +985,22 @@ const App: React.FC = () => {
                             </div>
                         )}
                         {airtableInitialized ? (
-                            <CampaignManager
-                                onLoadCampaign={handleLoadCampaign}
-                                onUseTemplate={handleUseTemplate}
-                                currentCampaign={currentCampaign}
-                                onSaveCurrent={handleSaveCurrent}
-                                resultsExist={!!results}
-                                hasUnsavedResults={!!results && (!currentCampaign ||
-                                    (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
-                                )}
-                                currentCampaignData={results}
-                                onCampaignAssign={(campaignId, staffIds) => {
-                                    console.log(`Campaign ${campaignId} assigned to:`, staffIds);
-                                }}
-                            />
+                            <Suspense fallback={<ComponentLoader message="Loading campaign manager..." />}>
+                                <CampaignManager
+                                    onLoadCampaign={handleLoadCampaign}
+                                    onUseTemplate={handleUseTemplate}
+                                    currentCampaign={currentCampaign}
+                                    onSaveCurrent={handleSaveCurrent}
+                                    resultsExist={!!results}
+                                    hasUnsavedResults={!!results && (!currentCampaign ||
+                                        (currentCampaign && JSON.stringify(currentCampaign.result) !== JSON.stringify(results))
+                                    )}
+                                    currentCampaignData={results}
+                                    onCampaignAssign={(campaignId, staffIds) => {
+                                        console.log(`Campaign ${campaignId} assigned to:`, staffIds);
+                                    }}
+                                />
+                            </Suspense>
                         ) : (
                             <div className="flex items-center justify-center py-16">
                                 <div className="text-center">
@@ -1008,39 +1028,45 @@ const App: React.FC = () => {
                 )}
 
                 {/* Export Manager */}
-                <ExportManager
-                    campaign={currentCampaign}
-                    results={results}
-                    isVisible={showExportManager}
-                    onClose={() => setShowExportManager(false)}
-                />
+                <Suspense fallback={<ComponentLoader message="Loading export manager..." />}>
+                    <ExportManager
+                        campaign={currentCampaign}
+                        results={results}
+                        isVisible={showExportManager}
+                        onClose={() => setShowExportManager(false)}
+                    />
+                </Suspense>
 
                 {/* Brand Kit Manager */}
-                <BrandKitManager
-                    isVisible={showBrandKitManager}
-                    onClose={() => setShowBrandKitManager(false)}
-                    onBrandKitUpdate={handleBrandKitUpdate}
-                />
+                <Suspense fallback={<ComponentLoader message="Loading brand kit manager..." />}>
+                    <BrandKitManager
+                        isVisible={showBrandKitManager}
+                        onClose={() => setShowBrandKitManager(false)}
+                        onBrandKitUpdate={handleBrandKitUpdate}
+                    />
+                </Suspense>
 
                 {/* CRM Manager - only show in generator view */}
                 {activeView === 'generator' && (
-                    <CRMManager
-                        isVisible={showCRMManager}
-                        onClose={() => setShowCRMManager(false)}
-                        onConnectionChange={() => {
-                            // Refresh CRM connection status when connections are modified
-                            const activeConnection = CRMIntegrationService.getActiveConnection();
-                            setCrmConnection(activeConnection);
-                            if (activeConnection) {
-                                setCrmSyncStatus('idle');
-                                setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
-                                addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
-                            } else {
-                                setCrmSyncStatus('idle');
-                                setCrmSyncMessage('');
-                            }
-                        }}
-                    />
+                    <Suspense fallback={<ComponentLoader message="Loading CRM manager..." />}>
+                        <CRMManager
+                            isVisible={showCRMManager}
+                            onClose={() => setShowCRMManager(false)}
+                            onConnectionChange={() => {
+                                // Refresh CRM connection status when connections are modified
+                                const activeConnection = CRMIntegrationService.getActiveConnection();
+                                setCrmConnection(activeConnection);
+                                if (activeConnection) {
+                                    setCrmSyncStatus('idle');
+                                    setCrmSyncMessage(`Connected to ${activeConnection.provider}`);
+                                    addCrmNotification('success', `CRM connection updated: ${activeConnection.provider}`);
+                                } else {
+                                    setCrmSyncStatus('idle');
+                                    setCrmSyncMessage('');
+                                }
+                            }}
+                        />
+                    </Suspense>
                 )}
 
                 {/* Login Modal */}

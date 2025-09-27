@@ -8,9 +8,50 @@ export default defineConfig(() => {
         outDir: 'dist',
         assetsDir: 'assets',
         sourcemap: false,
+        chunkSizeWarningLimit: 1000,
         rollupOptions: {
           output: {
-            manualChunks: undefined
+            manualChunks: {
+              // React and React DOM in their own chunk
+              'react-vendor': ['react', 'react-dom'],
+
+              // AI services in their own chunk
+              'ai-services': ['@google/genai'],
+
+              // Large third-party libraries
+              'pdf-vendor': ['jspdf'],
+
+              // CRM and Airtable services
+              'crm-vendor': ['airtable', '@vercel/node'],
+
+              // Components - split by feature area
+              'campaign-components': [
+                './components/CampaignManager',
+                './components/ExportManager'
+              ],
+              'management-components': [
+                './components/StaffManager',
+                './components/ProjectManager',
+                './components/BrandKitManager'
+              ],
+              'crm-components': [
+                './components/CRMManager'
+              ],
+
+              // Services - split by domain
+              'core-services': [
+                './services/geminiService',
+                './services/semrushService'
+              ],
+              'business-services': [
+                './services/airtableService',
+                './services/authService',
+                './services/crmIntegration',
+                './services/campaignStorage',
+                './services/brandKitService',
+                './services/exportService'
+              ]
+            }
           }
         }
       },
